@@ -10,4 +10,4 @@ KSCDC2025 Kyungsung Univ Project
 - 최종 본선 진출 팀 구두발표, 심사 및 시상 : 2025년 10월 25일(토)
 
 # 스마트 드론을 활용한 실시간 화재 탐지 및 초기 소화 시스템
-Nvidia Jetson Development Board 기반 딥러닝 자율주행 드론
+Nvidia Jetson Development Board 기반 소화탄 투척이 가능한 딥러닝 자율주행 드론
