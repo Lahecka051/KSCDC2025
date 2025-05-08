@@ -1,3 +1,3 @@
 # KSCDC2025
-KSCDC2025 Kyungsung Univ Project
+KSCDC2025 Kyungsung Univ Project ￦n
 2025.05.02 ~ 2025.09.12
