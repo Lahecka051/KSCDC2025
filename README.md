@@ -14,5 +14,7 @@ Nvidia Jetson Development Board 기반 소화탄 투척이 가능한 딥러닝 �
 
 # 헤놀로지 NAS
 https://dslkm.duckdns.org:4928/
+
 ID : kscdc2025 
+
 PW : kscdc2025
