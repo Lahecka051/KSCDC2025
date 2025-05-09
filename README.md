@@ -11,3 +11,8 @@ KSCDC2025 Kyungsung Univ Project
 
 # 스마트 드론을 활용한 실시간 화재 탐지 및 초기 소화 시스템
 Nvidia Jetson Development Board 기반 소화탄 투척이 가능한 딥러닝 자율주행 드론
+
+# 헤놀로지 NAS
+https://dslkm.duckdns.org:4928/
+ID : kscdc2025 
+PW : kscdc2025
