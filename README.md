@@ -1,5 +1,8 @@
 # KSCDC2025 [Team Prometheus]
 KSCDC2025 Kyungsung Univ Project
+## KSCDC 홈페이지 : http://kscdc.ksme.or.kr/
+- ID : kyungsung1
+- PW : kyungsung2
 
 # 중간보고서 ODF 
 == Google Docs 공동 작업 스페이스 ==
