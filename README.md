@@ -1,6 +1,10 @@
 # KSCDC2025 [Team Prometheus]
 KSCDC2025 Kyungsung Univ Project
 
+# 중간보고서 ODF 
+== Google Docs 공동 작업 스페이스 ==
+- https://docs.google.com/document/d/1pVvOz4eLByB2WOTVAg2WT2LU4FtLWE3JpXoK3MW3RI8/edit?usp=sharing
+
 # 2025.05.02 ~ 2025.09.12
 - 설계제안서 접수: 2025년 4월 7일(월) ~ 5월 2일(금) 온라인 접수
 - 중간보고서 접수: 2025년 6월 2일(월) ~ 6월 27일(금) 온라인 접수
