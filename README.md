@@ -1,7 +1,7 @@
 # KSCDC2025 [Team Prometheus]
 KSCDC2025 Kyungsung Univ Project
 ## KSCDC 홈페이지
-### http://kscdc.ksme.or.kr/
+- http://kscdc.ksme.or.kr/
 - ID : kyungsung1
 - PW : kyungsung2
 
