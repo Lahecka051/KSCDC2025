@@ -1,5 +1,13 @@
 # KSCDC2025 [Team Prometheus]
-KSCDC2025 Kyungsung Univ Project
+- KSCDC2025 Kyungsung Univ Project
+### 팀원
+- 이강민(조장)
+- 권혁준
+- 송승진
+- 김형찬
+- 유찬영
+- 김철우
+
 ## KSCDC 홈페이지
 - http://kscdc.ksme.or.kr/
 - ID : kyungsung1
