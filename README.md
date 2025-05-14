@@ -5,6 +5,11 @@ KSCDC2025 Kyungsung Univ Project
 - ID : kyungsung1
 - PW : kyungsung2
 
+# 2주차 ToDo List 
+### 각자 담당받은 부품 구매 리스트 알아오기
+### Google Docs 공동 작업 스페이스
+- https://docs.google.com/document/d/1nRSHEwY58dq7X9sT-Ti1DcgDuFTPXgdPE8P0EUMgVt0/edit?usp=sharing
+
 # 중간보고서 ODF 
 ### Google Docs 공동 작업 스페이스
 - https://docs.google.com/document/d/1pVvOz4eLByB2WOTVAg2WT2LU4FtLWE3JpXoK3MW3RI8/edit?usp=sharing
