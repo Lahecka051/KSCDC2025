@@ -70,10 +70,13 @@
 - 모든 UART는 ArduPilot의 RC 시스템 연결에도 사용할 수 있으며 PPM을 제외한 모든 프로토콜과 호환됩니다. 자세한 내용은 무선 제어 시스템을 참조하세요.
 
 ## OSD 지원(Ardupilot) 
-- MicoAir743 V2는 0SD_TYPE 1(MAX7456 드라이버 )를 사용하여 온보드 0SD를 지원합니다. 동시에 DisplayPort OSD는 HD VTX 커넥터에서 사용할 수 있습니다.
+- MicoAir743 V2는 0SD_TYPE 1(MAX7456 드라이버 )를 사용하여 온보드 0SD를 지원합니다.
+- 동시에 DisplayPort OSD는 HD VTX 커넥터에서 사용할 수 있습니다.
 
 ## VTX 지원 
-- SH1.0-6P 커넥터는 DJI 에어 유닛/HD VTX 연결을 지원합니다. 프로토콜의 기본값은 DisplayPort 입니다. 커넥터의 핀 1은 12V이므로 5V가 필요한 주변 장치에 연결하지 않도록 주의하십시오.
+- SH1.0-6P 커넥터는 DJI 에어 유닛/HD VTX 연결을 지원합니다.
+- 프로토콜의 기본값은 DisplayPort 입니다.
+- 커넥터의 핀 1은 12V이므로 5V가 필요한 주변 장치에 연결하지 않도록 주의하십시오.
 
 ## PWM 출력 
 - MicoAir743 V2은 최대 11개의 PWM 출력을 지원합니다. 
