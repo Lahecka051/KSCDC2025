@@ -1,20 +1,22 @@
 ## Jetson Orin Nano Super (66만원) 
-- AI Performance	67 INT8 TOPS
-- GPU	NVIDIA Ampere architecture with 1024 CUDA cores and 32 tensor cores
-- CPU	6-core Arm® Cortex®-A78AE v8.2 64-bit CPU 1.5MB L2 + 4MB L3
-- Memory 8GB 128-bit LPDDR5 102 GB/s
+- AI Performance 67 INT8 TOPS
+- GPU :	NVIDIA Ampere architecture with 1024 CUDA cores and 32 tensor cores
+- CPU	: 6-core Arm® Cortex®-A78AE v8.2 64-bit CPU 1.5MB L2 + 4MB L3
+- Memory : 8GB 128-bit LPDDR5 102 GB/s
 - Storage	Supports SD card slot and external NVMe
 - Power	7W – 25W
 
 ### YOLO v8 Processing data = Y_data
 - 해상도, BaudRate, Cable Length에 따른 UART 통신 데이터 전송 속도 고려
+- Y1_data를 방향데이터 ( X, Y, Z )로 변환 FC의 STM32보다 빠른지 비교
 - TTL 3.3V 통신 사용 ( 따로 전압 모듈 필요 X )
 
 ▲
 
 ## [ UART Protocol Communication ]
 - ### 통신에 영향을 주는 요소
-- 클럭에 따른 BaudRate 에러율 ( 목표 : 0% ) 
+- 클럭에 따른 BaudRate 에러율 ( 목표 : 0% )
+- GPT피셜 : Maximum BaudRate = 921600bs
 - Serial Communication Module Maximum data Throughput
 - 통신에 영향을 주는 BaudRate에 따른 Cable Length ( Option : 차폐 기능 )
 - 해상도에 따른 처리 시간 변화 ( BaudRate와 Cable Length에 영향을 받음 )
@@ -23,3 +25,4 @@
 
 ## FC ( Flight Controller )
 - TTL 3.3V 통신 사용 ( 따로 전압 모듈 필요 X )
+- Y1_data를 방향데이터 ( X, Y, Z )로 변환 Jetson Board 점유율 고려해서 처리 속도가 빠른 보드로 처리
