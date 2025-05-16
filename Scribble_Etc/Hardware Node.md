@@ -6,7 +6,9 @@
 - Storage	Supports SD card slot and external NVMe
 - Power	7W – 25W
 
-### YOLO v8 Processing data = Y1
+### YOLO v8 Processing data = Y_data
+- 해상도, BaudRate, Cable Length에 따른 UART 통신 데이터 전송 속도 고려
+- TTL 3.3V 통신 사용 ( 따로 전압 모듈 필요 X )
 
 ▲
 
@@ -20,4 +22,4 @@
 ▼
 
 ## FC ( Flight Controller )
-
+- TTL 3.3V 통신 사용 ( 따로 전압 모듈 필요 X )
