@@ -5,7 +5,8 @@
 - 제품에 대한 더욱 자세한 내용과 다운로드는 아래의 본사 링크를 참고하세요.
 - https://micoair.com/index.php/flightcontroller_micoair405v2/
  
-## 상세 제원 MCU : STM32F405RGT6, 168MHz, 1MB 플래시 
+## 상세 제원 
+- MCU : STM32F405RGT6, 168MHz, 1MB 플래시 
 - IMU: BMI088 
 - 바로: SPLO6 
 - OSD: AT7456E 
