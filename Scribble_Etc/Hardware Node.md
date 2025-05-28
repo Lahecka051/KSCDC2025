@@ -1,4 +1,4 @@
-## Jetson Orin Nano Super (66만원) 
+## Jetson Orin Nano Super
 - AI Performance 67 INT8 TOPS
 - GPU :	NVIDIA Ampere architecture with 1024 CUDA cores and 32 tensor cores
 - CPU	: 6-core Arm® Cortex®-A78AE v8.2 64-bit CPU 1.5MB L2 + 4MB L3
