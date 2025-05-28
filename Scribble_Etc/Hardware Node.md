@@ -6,7 +6,7 @@
 - Storage	Supports SD card slot and external NVMe
 - Power	7W – 25W
 
-### YOLO v8 Processing data = Y_data
+### YOLO v11 Processing data = Y_data
 - 해상도, BaudRate, Cable Length에 따른 UART 통신 데이터 전송 속도 고려
 - Y1_data를 방향데이터 ( X, Y, Z )로 변환 FC의 STM32보다 빠른지 비교
 - TTL 3.3V 통신 사용 ( 따로 전압 모듈 필요 X )
