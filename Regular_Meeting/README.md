@@ -35,10 +35,10 @@
 
 ### 개발보드 : 박장식 교수님 (Jetson Board)
 - 개발보드 : 박장식 교수님한테 대여
-- FHD 60p 영상처리 -> 40TOPs 이상 보드
+- FHD 60p 영상처리 -> 20TOPs 이상 보드
 
 ### 소프트웨어
-- Linux_Based (Ardupilot, YOLO(v5 or v8), UBUNTU GUI 18 ~ 24에서 테스트
+- Linux_Based (ROS, Ardupilot, YOLOv8s, UBUNTU GUI 24)
 
 ## 프레임
 - 우선사항 [ 프레임 무게, 페이로드 ]
