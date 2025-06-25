@@ -33,7 +33,7 @@ Nvidia Jetson Development Board 기반 소화탄 투척이 가능한 딥러닝 �
 
 # 헤놀로지 NAS
 인증서 갱신이 안되어 있어서 보안관련 경고문이 뜨는데 무시하고 들어가면 됩니다.
-[https://synol.dslkm.org/](https://synol.dslkmxpenology.org/)
+[헤놀로지 링크](https://synol.dslkmxpenology.org/)
 
 ID : kscdc2025 
 
