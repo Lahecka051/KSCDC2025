@@ -3,10 +3,10 @@
 - 메인 페이지의 정리된 회의 내용은 회의 종료 후 2일 이내 업데이트 됩니다.
 - 자세한 사항은 당일 회의록을 참고하시기 바랍니다.
 
-# Paste_Data : 05.24(토) (latest update) 
+# Paste_Data : 06.25(수) (latest update) 
 
-## 논의 내용
-- 부품 구매리스트 확정 및 중가보고서에 작성할 개념 설계적인 부분 보완
+## 진행 상황
+- 부품 확정 & 중간보고서 작성 완료
 
 ### 기계공학적인 차별점이 필요
 - 드론 하단부 소화탄 발사기 ( 소화탄 다연장 회전식 매커니즘 ) 탈부착
@@ -15,39 +15,40 @@
 
 ## 확정된 부품
 - 예산 : 30만원
-  
-### 모터 : 이동희 교수님 대여
-- Airgear 350 Combo Set Multi-Rotor UAV Power
-- 2213 20A 920KV 
 
-### FC(Flight Controller) 100,000원
+#### 모터 : 이동희 교수님 
+- Airgear 350 Combo Set Multi-Rotor UAV Power 4pcs Set X2
+- 9.5 X 4.5 two blade Propeller
+  
+#### FC(Flight Controller)
 -미코에어 H743 V2 신형 픽스호크 비행 컨트롤러
 
-### 카메라
-- 정면 : IMX219 160 degree 18,000원
-- 바닥 : IMX219 120 degree 15,000원
-- Total : 35,000원
+#### 카메라
+- 정면 : IMX219 160 degree
+- 바닥 : IMX219 120 degree
 
-## 미확정 부품
+#### 배터리 
+- LiPo 4S(14.8V) 8,400mAh 130C X2 
+- IMAX B6 LiPo 충전기
 
-### 배터리 : 4S(14.8V) 
-- 5,000mAh ~ 10,000mAh 70,000원
-
-### 개발보드 : 박장식 교수님 (Jetson Board)
-- 개발보드 : 박장식 교수님한테 대여
-- FHD 60p 영상처리 -> 20TOPs 이상 보드
+#### 개발보드 
+- Jetson Orin Nano Super
 
 ### 소프트웨어
-- Linux_Based (ROS, Ardupilot, YOLOv8s, UBUNTU GUI 24)
+- UBUNTU_GUI 24.2
+- ROS BASED Ardupilot
+- TENSORFLOW BASED OPENCV
+- MODEL : YOLOv8s
 
 ## 프레임
-- 우선사항 [ 프레임 무게, 페이로드 ]
 - 페이로드 : 3kg 이하, 사이즈 : 300x300 mm 이상
 
-## 진행 상황
-- 부품 확정 & 중간보고서 작성 방향성 및 초안 작성 완료
+### 부품 공식 제원 상 무게
+jetson orin nano super : Dimensions = 100mm x 79mm x 21mm, Weight = 176g, Power = 5V_Input(5W ~ 25W)
+Camera : 3g x 2 = 6g
+Flight Controller Spec : Mounting = 30.5mm x 30.5mm x 4mm, Dimensions = 36mm x 36mm x 8mm, Weight = 10g
+
 
 ## 앞으로 진행할 내용
-- 중간보고서 제출 3일 전까지 최종안 작성 & 하드웨어 제작 전까지 소프트웨어 빌드 & 테스트
-- 중간보고서 05월 30일까지 작성하고 매주마다 피드백, 방학 이후 마지막 3일 최종 마무리
-- 하드웨어 제작은 중간보고서 이후에 진행
+- 소프트웨어 데이터셋 작업 진행
+- 하드웨어 제작 날짜 정하기
