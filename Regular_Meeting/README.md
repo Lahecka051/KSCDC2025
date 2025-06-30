@@ -46,8 +46,9 @@
 
 ## 프레임
 - 페이로드 : 3kg 이하, 사이즈 : 300x300 mm 이상
-- X6-X600 FPV 프레임 600mm 30A ~ 40A
+- X6-X600 FPV 프레임 600mm 30A ~ 40A / 2212 920KV 모터
 - [프레 구매 링크](https://ko.aliexpress.com/item/1005008274592701.html?spm=a2g0o.order_list.order_list_main.137.f19d140fXWRv7X&gatewayAdapt=glo2kor)
+
 ### 부품 공식 제원 상 무게
 jetson orin nano super : Dimensions = 100mm x 79mm x 21mm, Weight = 176g, Power = 5V_Input(5W ~ 25W)
 Camera : 3g x 2 = 6g
