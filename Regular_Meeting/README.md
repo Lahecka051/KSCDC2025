@@ -42,6 +42,7 @@
 
 ## 프레임
 - 페이로드 : 3kg 이하, 사이즈 : 300x300 mm 이상
+- X6-X600 FPV 프레임 600mm 30A ~ 40A
 
 ### 부품 공식 제원 상 무게
 jetson orin nano super : Dimensions = 100mm x 79mm x 21mm, Weight = 176g, Power = 5V_Input(5W ~ 25W)
