@@ -21,7 +21,8 @@
 - 9.5 X 4.5 two blade Propeller
   
 #### FC(Flight Controller)
--미코에어 H743 V2 신형 픽스호크 비행 컨트롤러
+- 미코에어 H743 V2 신형 픽스호크 비행 컨트롤러 (ARDUPILOT ONLY)
+- [FC 구매 링크](https://ko.aliexpress.com/item/1005008824819033.html?spm=a2g0o.order_list.order_list_main.119.f19d140fXWRv7X&gatewayAdapt=glo2kor)
 
 #### 카메라
 - 정면 : IMX219 160 degree
@@ -30,9 +31,12 @@
 #### 배터리 
 - LiPo 4S(14.8V) 8,400mAh 130C X2 
 - IMAX B6 LiPo 충전기
+- [배터리 구매 링크](https://ko.aliexpress.com/item/1005001956377380.html?spm=a2g0o.order_list.order_list_main.131.f19d140fXWRv7X&gatewayAdapt=glo2kor)
+- [충전기 구매 링크](https://ko.aliexpress.com/item/1005005231331856.html?spm=a2g0o.order_list.order_list_main.125.f19d140fXWRv7X&gatewayAdapt=glo2kor)
 
 #### 개발보드 
 - Jetson Orin Nano Super
+- [개발보드 공식 링크](https://www.nvidia.com/ko-kr/autonomous-machines/embedded-systems/jetson-orin/nano-super-developer-kit/)
 
 ### 소프트웨어
 - UBUNTU_GUI 24.2
@@ -43,7 +47,7 @@
 ## 프레임
 - 페이로드 : 3kg 이하, 사이즈 : 300x300 mm 이상
 - X6-X600 FPV 프레임 600mm 30A ~ 40A
-
+- [프레 구매 링크](https://ko.aliexpress.com/item/1005008274592701.html?spm=a2g0o.order_list.order_list_main.137.f19d140fXWRv7X&gatewayAdapt=glo2kor)
 ### 부품 공식 제원 상 무게
 jetson orin nano super : Dimensions = 100mm x 79mm x 21mm, Weight = 176g, Power = 5V_Input(5W ~ 25W)
 Camera : 3g x 2 = 6g
