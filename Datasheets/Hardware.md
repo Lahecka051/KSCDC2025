@@ -1,5 +1,5 @@
 # 1. 소화볼 규격
-4인치 / 약 10cm
+4인치 / 약 10cm // 6인치 고려 / 약 15cm
 
 https://fireds.com/product/%EC%BD%94%EB%81%BC%EB%A6%AC%EC%86%8C%EB%B0%A9%EB%A7%88%ED%8A%B8-%ED%99%94%EC%9D%B4%EC%96%B4%EB%B3%BC4%EC%9D%B8%EC%B9%98-%ED%99%94%EC%9E%AC%EC%B4%88%EA%B8%B0-%EC%9E%90%EB%8F%99-%EC%A7%84%EC%95%95%EA%B3%B5-%EC%86%8C%EA%B3%B5%EA%B0%84-%EC%9E%90%EB%8F%99%EC%86%8C%ED%99%94%EC%9E%A5%EC%B9%98-%EC%9E%90%EB%8F%99%EC%86%8C%ED%99%94%EA%B8%B0/8683/
 
@@ -18,3 +18,6 @@ https://smartstore.naver.com/sondori/products/9590869360?site_preference=device&
 
 # 4. 프로파일  (20 x 20 실버)
 https://smartstore.naver.com/bandotec/products/7230610259
+
+# 5. 기판 / 배터리 / Jetson / 배치 고려
+-> 아래쪽 V자 평판 구조 새로 제작
