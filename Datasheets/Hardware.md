@@ -1,9 +1,7 @@
-# 0709. 업데이트
-1. 10일 필라멘트 도착
-2. 그리퍼 출력
-3. 4인치 / 6인치 출력
-4. 피드백 생각
-5. ...
+# 0710 할 일
+1. 필라멘트 도착하면 그리퍼 출력 -> 소화볼 출력
+2. 역설계 모델링
+3. 피드백 고려
 
 # 1. 소화볼 규격
 4인치 / 약 10cm // 6인치 고려 / 약 15cm
@@ -23,8 +21,11 @@ PLA
 ABS
 https://smartstore.naver.com/sondori/products/9590869360?site_preference=device&NaPm=ct%3Dmcitp7nz%7Cci%3Dshopn%7Ctr%3Dnslsl_myz%7Chk%3De2fb1112ea9957dce7b9f8327fe887968b7a0216%7Ctrx%3Dundefined
 
-# 4. 프로파일  (20 x 20 실버)
-https://smartstore.naver.com/bandotec/products/7230610259
-
-# 5. 기판 / 배터리 / Jetson / 배치 고려
+# 4. 기판 / 배터리 / Jetson / 배치 고려
 -> 아래쪽 V자 평판 구조 새로 제작
+
+# 5. 온도 센서 구비 
+
+# 6. 스테이션
+소재: 2T 아크릴판, 20 x 20 (실버) 프로파일
+https://smartstore.naver.com/bandotec/products/7230610259
