@@ -1,0 +1,214 @@
+# Install necessary libraries:
+# pip install Flask Flask-SocketIO pyserial pymavlink
+
+from flask import Flask, render_template_string
+from flask_socketio import SocketIO, emit
+import threading
+import time
+from pymavlink import mavutil
+import math # For math.pi
+
+# --- Configuration ---
+# Set the serial port and baudrate for the connection between Raspberry Pi 5 and LR900-F telemetry module.
+# Typically, /dev/ttyUSB0 for a USB-to-Serial adapter, or /dev/ttyS0 / /dev/ttyAMA0 for built-in UART.
+# This must match the Baudrate configured on your FC and LR900-F module in Mission Planner.
+SERIAL_PORT = '/dev/ttyUSB0'  # Example: USB-to-Serial adapter connection. Verify your actual port.
+BAUDRATE = 57600             # Must match FC and telemetry module Baudrate.
+
+# Enter your Google Maps API key here!
+# This key is used by the browser to load the Google Maps JavaScript API.
+Maps_API_KEY = "YOUR_Maps_API_KEY" # <<<<<< REPLACE WITH YOUR ACTUAL API KEY! (Google Maps API KEY : https://developers.google.com/maps/documentation/javascript/get-api-key?hl=ko#create-api-keys)
+
+# --------------------------------------------------
+
+app = Flask(__name__)
+# For development, allow all origins (CORS) to enable connections from any browser.
+# In production, restrict this to specific origins for security.
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+mav_connection = None
+mav_running = False
+
+# Variables to store the most recently received drone data
+last_drone_data = {
+    'lat': 35.158580, # Initial latitude (example: near Busan, South Korea)
+    'lon': 129.060120, # Initial longitude (example: near Busan, South Korea)
+    'alt': 0.0,      # Initial altitude
+    'yaw': 0.0       # Initial Yaw in Degrees
+}
+
+# HTML Template (Google Maps and Socket.IO integration)
+# Includes an example SVG icon path for the drone marker, allowing rotation.
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drone Navigation GUI</title>
+    <style>
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        let map;
+        let droneMarker;
+        let flightPath;
+        let currentPath = [];
+
+        // Initialize Google Maps
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: 35.158580, lng: 129.060120}, // Initial map center
+                zoom: 18,
+                mapTypeId: 'satellite' // Satellite view
+            });
+
+            // Drone icon (using SVG Path for rotatable marker)
+            const droneSvgIcon = {
+                path: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15l-4-4h8l-4 4z', // Simple circular arrow
+                fillColor: '#FF0000', // Red fill
+                fillOpacity: 0.9,
+                scale: 1.5,
+                strokeColor: 'white',
+                strokeWeight: 1,
+                anchor: new google.maps.Point(12, 12), // Icon center point
+                rotation: 0 // This value will be updated with Yaw data
+            };
+
+            // Create drone marker (initial position)
+            droneMarker = new google.maps.Marker({
+                position: {lat: 35.158580, lng: 129.060120}, // Initial position
+                map: map,
+                icon: droneSvgIcon,
+                title: 'Drone Position'
+            });
+
+            // Create polyline for flight path
+            flightPath = new google.maps.Polyline({
+                path: currentPath,
+                geodesic: true,
+                strokeColor: '#FF0000', // Red path
+                strokeOpacity: 1.0,
+                strokeWeight: 2
+            });
+            flightPath.setMap(map);
+
+            // Connect to Socket.IO server
+            const socket = io(); // Connects to the Flask-SocketIO server running on the RPi
+
+            socket.on('connect', function() {
+                console.log('Connected to WebSocket server');
+            });
+
+            // Handle incoming drone position data
+            socket.on('drone_position', function(data) {
+                const newLat = data.lat;
+                const newLon = data.lon;
+                const newAlt = data.alt;
+                const newYaw = data.yaw; // Yaw in Degrees
+
+                const newPos = {lat: newLat, lng: newLon};
+
+                droneMarker.setPosition(newPos);
+                // Update icon rotation based on Yaw
+                droneMarker.setIcon({
+                    ...droneSvgIcon,
+                    rotation: newYaw
+                });
+
+                // Update flight path
+                currentPath.push(newPos);
+                // Keep the path length reasonable (e.g., last 100 points)
+                if (currentPath.length > 100) {
+                    currentPath.shift();
+                }
+                flightPath.setPath(currentPath);
+
+                // Optional: Center map on drone (uncomment if desired)
+                // map.setCenter(newPos);
+
+                console.log(`Drone Pos: Lat ${newLat}, Lng ${newLon}, Alt ${newAlt}m, Yaw ${newYaw}°`);
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Disconnected from WebSocket server');
+            });
+        }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap"></script>
+</body>
+</html>
+"""
+
+# MAVLink Receiver Thread
+def mavlink_receiver_thread():
+    global mav_connection, mav_running, last_drone_data
+    try:
+        # Establish MAVLink connection
+        mav_connection = mavutil.mavlink_connection(SERIAL_PORT, baud=BAUDRATE, timeout=1)
+        print("Waiting for MAVLink HEARTBEAT...")
+        mav_connection.wait_heartbeat()
+        print(f"MAVLink connected to {SERIAL_PORT}: system {mav_connection.target_system} component {mav_connection.target_component}")
+        mav_running = True
+
+        # Continuously receive and process MAVLink messages
+        while mav_running:
+            # Receive GLOBAL_POSITION_INT (for Lat/Lon/Alt) and ATTITUDE (for Yaw) messages
+            msg = mav_connection.recv_match(type=['GLOBAL_POSITION_INT', 'ATTITUDE'], blocking=False, timeout=0.1)
+            
+            if msg:
+                if msg.get_type() == 'GLOBAL_POSITION_INT':
+                    last_drone_data['lat'] = msg.lat / 1.0e7
+                    last_drone_data['lon'] = msg.lon / 1.0e7
+                    last_drone_data['alt'] = msg.relative_alt / 1.0e3 # Relative altitude in meters
+                    # print(f"Received GPS: Lat={last_drone_data['lat']:.7f}, Lon={last_drone_data['lon']:.7f}, Alt={last_drone_data['alt']:.2f}")
+                elif msg.get_type() == 'ATTITUDE':
+                    # Convert Yaw from radians to degrees
+                    last_drone_data['yaw'] = msg.yaw * 180 / math.pi
+                    # print(f"Received Attitude: Yaw={last_drone_data['yaw']:.2f}°")
+            
+            # Emit the most recent combined drone data to the web clients via WebSocket
+            # This ensures a consistent update rate to the GUI, independent of MAVLink message frequency.
+            # Sends data approximately every 0.1 seconds (10 Hz).
+            socketio.emit('drone_position', last_drone_data)
+            time.sleep(0.1) # WebSocket update frequency
+
+    except Exception as e:
+        print(f"MAVLink receiver error: {e}")
+    finally:
+        if mav_connection and mav_connection.port.is_open:
+            mav_connection.close()
+        print("MAVLink receiver stopped.")
+        mav_running = False
+
+# Flask web route for the main page
+@app.route('/')
+def index():
+    # Pass the Google Maps API key to the HTML template.
+    return render_template_string(HTML_TEMPLATE, api_key=Maps_API_KEY)
+
+# Main execution block
+if __name__ == '__main__':
+    # Start the MAVLink receiver thread in the background.
+    # The drone/FC should be powered on before starting this script to ensure MAVLink connection.
+    mav_thread = threading.Thread(target=mavlink_receiver_thread)
+    mav_thread.daemon = True # Allows the thread to terminate with the main program
+    mav_thread.start()
+
+    print(f"Flask-SocketIO server starting on http://0.0.0.0:5000")
+    # Run the Flask-SocketIO web server.
+    # Access this GUI from a web browser on the RPi itself (http://localhost:5000)
+    # or from another device on the same network (http://<RaspberryPi_IP_Address>:5000).
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True) # allow_unsafe_werkzeug for development
