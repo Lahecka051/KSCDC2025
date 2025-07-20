@@ -1,33 +1,24 @@
 # KSCDC2025 [Team Prometheus]
 - KSCDC2025 Kyungsung Univ Project
-### 팀원
-- 이강민(조장)
-- 권혁준
-- 송승진
-- 유찬영
-- 김철우
-
-## KSCDC 홈페이지
-- http://kscdc.ksme.or.kr/
-- ID : kyungsung1
-- PW : kyungsung2
-
-# 부품 구매 리스트
-### [Google Docs 공동 작업 스페이스](https://docs.google.com/document/d/1nRSHEwY58dq7X9sT-Ti1DcgDuFTPXgdPE8P0EUMgVt0/edit?usp=sharing)
-
-# 중간보고서 ODF 
-### [Google Docs 공동 작업 스페이스](https://docs.google.com/document/d/1pVvOz4eLByB2WOTVAg2WT2LU4FtLWE3JpXoK3MW3RI8/edit?usp=sharing)
 
 # 2025.05.02 ~ 2025.09.12
 - 설계제안서 접수: 2025년 4월 7일(월) ~ 5월 2일(금) 온라인 접수
 - 중간보고서 접수: 2025년 6월 2일(월) ~ 6월 27일(금) 온라인 접수
-- 본선 진출 팀 선정결과: 2025년 7월 14일(월) email 통보
+- 본선 진출 팀 선정결과: 2025년 7월 14일(월) 7월 18일(금) email 통보
+   ※ 심사 지연으로 인하여 평가 결과 통보 일정이 연기되었습니다. 양해를 부탁드리겠습니다.
 - 최종보고서 접수: 2025년 8월 25일(월) ~ 9월 12일(금) 온라인 접수
 - 최종 본선 진출 팀 선정결과: 2025년 9월 29일(월) email 통보
 - 최종 본선 진출 팀 구두발표, 심사 및 시상 : 2025년 10월 25일(토)
 
 # 스마트 드론을 활용한 실시간 화재 탐지 및 초기 소화 시스템
 Nvidia Jetson Development Board 기반 소화탄 투척이 가능한 딥러닝 자율주행 드론
+  
+### 팀원
+- 이강민(조장)
+- 권혁준
+- 송승진
+- 유찬영
+- 김철우
 
 # 헤놀로지 NAS
 인증서 갱신이 안되어 있어서 보안관련 경고문이 뜨는데 무시하고 들어가면 됩니다.
@@ -36,3 +27,23 @@ Nvidia Jetson Development Board 기반 소화탄 투척이 가능한 딥러닝 �
 ID : kscdc2025 
 
 PW : kscdc2025
+
+# KSCDC 홈페이지
+- http://kscdc.ksme.or.kr/
+- ID : kyungsung1
+- PW : kyungsung2
+
+# 최종보고서
+### [Google Docs 공동 작업 스페이스 접속](https://docs.google.com/document/d/106o5CShBEe7szLtclFux3OxCRUoWJ9Vq1TsLyF5sEMw/edit?usp=sharing)
+
+# 중간보고서 ODF 
+### [Google Docs 공동 작업 스페이스 접속](https://docs.google.com/document/d/1pVvOz4eLByB2WOTVAg2WT2LU4FtLWE3JpXoK3MW3RI8/edit?usp=sharing)
+
+# 부품 구매 리스트
+### [Google Docs 공동 작업 스페이스 접속](https://docs.google.com/document/d/1nRSHEwY58dq7X9sT-Ti1DcgDuFTPXgdPE8P0EUMgVt0/edit?usp=sharing)
+
+
+
+
+
+
