@@ -14,7 +14,7 @@ class DroneController:
         self.loop.run_until_complete(self.connect_and_prepare())
 
     async def connect_and_prepare(self):
-        await self.drone.connect(system_address="udp://:14540")
+        await self.drone.connect(system_address="udp://:14550")
         print("[DRONE] Connected")
         print("[DRONE] Arming...")
         await self.drone.action.arm()
