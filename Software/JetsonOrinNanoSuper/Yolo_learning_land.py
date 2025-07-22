@@ -48,7 +48,7 @@ async def landing_logic(drone):
     pid_y = PIDController(kp=0.002, ki=0, kd=0.001)
 
     # 오프보드 모드 시작
-    print("🛫 Offboard 제어 시작 시도")
+    print("Offboard 제어 시작 시도")
     try:
         await drone.offboard.set_velocity_ned(VelocityNedYaw(0.0, 0.0, 0.0, 0.0))
         await asyncio.sleep(1)
