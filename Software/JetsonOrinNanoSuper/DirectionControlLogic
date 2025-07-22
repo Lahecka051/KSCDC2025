@@ -3,121 +3,99 @@ from dronekit import connect, VehicleMode, mavutil
 
 def connect_drone(connection_string, baud=921600):
     """
-    지정한 UART 포트와 속도로 드론에 연결합니다.
+    Connects to the drone using the specified UART port and baud rate.
     
     Args:
-        connection_string (str): UART 포트 (예: '/dev/ttyAMA0', 'COM3')
-        baud (int): 통신 속도 (ArduPilot 설정과 일치해야 함)
+        connection_string (str): The UART port (e.g., '/dev/ttyTHS1').
+        baud (int): The baud rate, must match the ArduPilot config.
 
     Returns:
-        Vehicle: 연결된 vehicle 객체, 실패 시 None
+        The connected drone object (DataRT), or None if connection fails.
     """
     try:
-        print(f"Connecting to vehicle on: {connection_string} at {baud} baud...")
-        vehicle = connect(connection_string, baud=baud, wait_ready=True)
-        print("Vehicle connected!")
-        return vehicle
-    except Exception as e:
-        print(f"Failed to connect: {e}")
+        DataRT = connect(connection_string, baud=baud, wait_ready=True)
+        return DataRT
+    except Exception:
         return None
 
-def arm_and_takeoff(vehicle, target_altitude):
+def arm_and_takeoff(DataRT, target_altitude):
     """
-    드론을 Arm하고 지정된 고도까지 이륙시킵니다.
-    GUIDED 모드에서만 작동합니다.
+    Arms the drone and takes off to a specified altitude.
+    This function only works in GUIDED mode.
     """
-    print("Basic pre-arm checks")
-    while not vehicle.is_armable:
-        print(" Waiting for vehicle to initialise...")
+    while not DataRT.is_armable:
         time.sleep(1)
 
-    print("Arming motors")
-    vehicle.mode = VehicleMode("GUIDED")
-    vehicle.armed = True
+    DataRT.mode = VehicleMode("GUIDED")
+    DataRT.armed = True
 
-    while not vehicle.armed:
-        print(" Waiting for arming...")
+    while not DataRT.armed:
         time.sleep(1)
 
-    print(f"Taking off to {target_altitude}m!")
-    vehicle.simple_takeoff(target_altitude)
+    DataRT.simple_takeoff(target_altitude)
 
-    # 이륙 완료까지 대기
+    # Wait until the drone reaches the target altitude
     while True:
-        current_altitude = vehicle.location.global_relative_frame.alt
-        print(f" Altitude: {current_altitude:.2f}m")
+        current_altitude = DataRT.location.global_relative_frame.alt
         if current_altitude >= target_altitude * 0.95:
-            print("Target altitude reached")
             break
         time.sleep(1)
 
-def send_velocity_command(vehicle, velocity_x, velocity_y, velocity_z, duration):
+def send_velocity_command(DataRT, velocity_x, velocity_y, velocity_z, duration):
     """
-    드론에 특정 속도(NED 좌표계 기준) 명령을 일정 시간 동안 보냅니다.
-    
-    - velocity_x > 0: 전진 (North)
-    - velocity_y > 0: 오른쪽 (East)
-    - velocity_z > 0: 하강 (Down)  <- 주의: 상승은 음수(-) 값 사용
+    Sends a velocity command to the drone based on the NED coordinate system
+    for a specified duration.
     """
-    msg = vehicle.message_factory.set_position_target_local_ned_encode(
-        0,       # time_boot_ms (not used)
-        0, 0,    # target_system, target_component
-        mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED, # 기체 기준 좌표계 사용
-        0b0000111111000111, # type_mask: 속도만 제어
-        0, 0, 0, # x, y, z 위치 (사용 안 함)
-        velocity_x, velocity_y, velocity_z, # x, y, z 속도 (m/s)
-        0, 0, 0, # x, y, z 가속도 (사용 안 함)
-        0, 0)    # yaw, yaw_rate (사용 안 함)
+    msg = DataRT.message_factory.set_position_target_local_ned_encode(
+        0, 0, 0,
+        mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
+        0b0000111111000111,
+        0, 0, 0,
+        velocity_x, velocity_y, velocity_z,
+        0, 0, 0, 0, 0)
 
-    print(f"Sending velocity command: vx={velocity_x}, vy={velocity_y}, vz={velocity_z} for {duration}s")
     for _ in range(duration):
-        vehicle.send_mavlink(msg)
+        DataRT.send_mavlink(msg)
         time.sleep(1)
     
-    # 정지 명령 (중요)
-    stop_msg = vehicle.message_factory.set_position_target_local_ned_encode(
+    stop_msg = DataRT.message_factory.set_position_target_local_ned_encode(
         0, 0, 0, mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
         0b0000111111000111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-    vehicle.send_mavlink(stop_msg)
-    print("Movement stopped.")
+    DataRT.send_mavlink(stop_msg)
 
 
-# --- 단축 명령어 함수들 ---
+# --- Shortcut Command Functions ---
 
-def move_forward(vehicle, speed, duration):
-    """초당 'speed'미터의 속도로 'duration'초 동안 전진"""
-    send_velocity_command(vehicle, speed, 0, 0, duration)
+def move_forward(DataRT, speed, duration):
+    """Moves forward at 'speed' m/s for 'duration' seconds."""
+    send_velocity_command(DataRT, speed, 0, 0, duration)
 
-def move_backward(vehicle, speed, duration):
-    """초당 'speed'미터의 속도로 'duration'초 동안 후진"""
-    send_velocity_command(vehicle, -speed, 0, 0, duration)
+def move_backward(DataRT, speed, duration):
+    """Moves backward at 'speed' m/s for 'duration' seconds."""
+    send_velocity_command(DataRT, -speed, 0, 0, duration)
 
-def move_right(vehicle, speed, duration):
-    """초당 'speed'미터의 속도로 'duration'초 동안 오른쪽으로 이동"""
-    send_velocity_command(vehicle, 0, speed, 0, duration)
+def move_right(DataRT, speed, duration):
+    """Moves right at 'speed' m/s for 'duration' seconds."""
+    send_velocity_command(DataRT, 0, speed, 0, duration)
 
-def move_left(vehicle, speed, duration):
-    """초당 'speed'미터의 속도로 'duration'초 동안 왼쪽으로 이동"""
-    send_velocity_command(vehicle, 0, -speed, 0, duration)
+def move_left(DataRT, speed, duration):
+    """Moves left at 'speed' m/s for 'duration' seconds."""
+    send_velocity_command(DataRT, 0, -speed, 0, duration)
 
-def move_up(vehicle, speed, duration):
-    """초당 'speed'미터의 속도로 'duration'초 동안 상승"""
-    send_velocity_command(vehicle, 0, 0, -speed, duration) # 상승은 z축 속도가 음수(-)
+def move_up(DataRT, speed, duration):
+    """Moves up at 'speed' m/s for 'duration' seconds."""
+    send_velocity_command(DataRT, 0, 0, -speed, duration)
 
-def move_down(vehicle, speed, duration):
-    """초당 'speed'미터의 속도로 'duration'초 동안 하강"""
-    send_velocity_command(vehicle, 0, 0, speed, duration) # 하강은 z축 속도가 양수(+)
+def move_down(DataRT, speed, duration):
+    """Moves down at 'speed' m/s for 'duration' seconds."""
+    send_velocity_command(DataRT, 0, 0, speed, duration)
 
-def land_and_close(vehicle):
+def land_and_close(DataRT):
     """
-    드론을 착륙시키고 연결을 종료합니다.
+    Lands the drone and closes the connection.
     """
-    print("Landing...")
-    vehicle.mode = VehicleMode("LAND")
-    while vehicle.armed:
-        print(" Waiting for disarming...")
+    DataRT.mode = VehicleMode("LAND")
+    while DataRT.armed:
         time.sleep(1)
     
-    print("Vehicle landed and disarmed.")
-    vehicle.close()
-    print("Connection closed.")
+    DataRT.close()
