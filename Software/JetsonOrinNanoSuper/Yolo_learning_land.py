@@ -95,7 +95,7 @@ async def landing_logic(drone):
             vx = max(min(pid_x.compute(-dx), speed_limit), -speed_limit)
             vy = max(min(pid_y.compute(-dy), speed_limit), -speed_limit)
 
-            print(f"🎯 H 감지: center={h_center}, dx={dx}, dy={dy}, area={h_area}")
+            print(f"H 감지: center={h_center}, dx={dx}, dy={dy}, area={h_area}")
 
             w_h = x2 - x1
             h_h = y2 - y1
