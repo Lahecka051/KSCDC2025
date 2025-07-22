@@ -1,28 +1,21 @@
 import time
+import math # For trigonometric functions
 from dronekit import connect, VehicleMode, mavutil
 
 def connect_drone(connection_string, baud=921600):
-    """
-    Connects to the drone using the specified UART port and baud rate.
-    
-    Args:
-        connection_string (str): The UART port (e.g., '/dev/ttyTHS1').
-        baud (int): The baud rate, must match the ArduPilot config.
 
-    Returns:
-        The connected drone object (DataRT), or None if connection fails.
-    """
+## --- Connects to the drone using the specified UART port and baud rate ---
+
     try:
         DataRT = connect(connection_string, baud=baud, wait_ready=True)
         return DataRT
     except Exception:
         return None
 
-def arm_and_takeoff(DataRT, target_altitude):
-    """
-    Arms the drone and takes off to a specified altitude.
-    This function only works in GUIDED mode.
-    """
+def takeoff(DataRT, target_altitude):
+    
+## --- Arms the drone and takes off to a specified altitude in GUIDED mode ---
+
     while not DataRT.is_armable:
         time.sleep(1)
 
@@ -34,7 +27,6 @@ def arm_and_takeoff(DataRT, target_altitude):
 
     DataRT.simple_takeoff(target_altitude)
 
-    # Wait until the drone reaches the target altitude
     while True:
         current_altitude = DataRT.location.global_relative_frame.alt
         if current_altitude >= target_altitude * 0.95:
@@ -42,10 +34,9 @@ def arm_and_takeoff(DataRT, target_altitude):
         time.sleep(1)
 
 def send_velocity_command(DataRT, velocity_x, velocity_y, velocity_z, duration):
-    """
-    Sends a velocity command to the drone based on the NED coordinate system
-    for a specified duration.
-    """
+
+## --- Sends a velocity command to the drone for a specified duration ---
+
     msg = DataRT.message_factory.set_position_target_local_ned_encode(
         0, 0, 0,
         mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
@@ -63,34 +54,7 @@ def send_velocity_command(DataRT, velocity_x, velocity_y, velocity_z, duration):
         0b0000111111000111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     DataRT.send_mavlink(stop_msg)
 
-
-# --- Shortcut Command Functions ---
-
-def move_forward(DataRT, speed, duration):
-    """Moves forward at 'speed' m/s for 'duration' seconds."""
-    send_velocity_command(DataRT, speed, 0, 0, duration)
-
-def move_backward(DataRT, speed, duration):
-    """Moves backward at 'speed' m/s for 'duration' seconds."""
-    send_velocity_command(DataRT, -speed, 0, 0, duration)
-
-def move_right(DataRT, speed, duration):
-    """Moves right at 'speed' m/s for 'duration' seconds."""
-    send_velocity_command(DataRT, 0, speed, 0, duration)
-
-def move_left(DataRT, speed, duration):
-    """Moves left at 'speed' m/s for 'duration' seconds."""
-    send_velocity_command(DataRT, 0, -speed, 0, duration)
-
-def move_up(DataRT, speed, duration):
-    """Moves up at 'speed' m/s for 'duration' seconds."""
-    send_velocity_command(DataRT, 0, 0, -speed, duration)
-
-def move_down(DataRT, speed, duration):
-    """Moves down at 'speed' m/s for 'duration' seconds."""
-    send_velocity_command(DataRT, 0, 0, speed, duration)
-
-def land_and_close(DataRT):
+def land(DataRT):
     """
     Lands the drone and closes the connection.
     """
@@ -99,3 +63,35 @@ def land_and_close(DataRT):
         time.sleep(1)
     
     DataRT.close()
+
+## --- Movement Control Functions ---
+
+# Simple 6-Directional Commands
+def move_forward(DataRT, speed, duration):
+    send_velocity_command(DataRT, speed, 0, 0, duration)
+
+def move_backward(DataRT, speed, duration):
+    send_velocity_command(DataRT, -speed, 0, 0, duration)
+
+def move_right(DataRT, speed, duration):
+    send_velocity_command(DataRT, 0, speed, 0, duration)
+
+def move_left(DataRT, speed, duration):
+    send_velocity_command(DataRT, 0, -speed, 0, duration)
+
+def move_up(DataRT, speed, duration):
+    send_velocity_command(DataRT, 0, 0, -speed, duration)
+
+def move_down(DataRT, speed, duration):
+    send_velocity_command(DataRT, 0, 0, speed, duration)
+
+# Angle-Based Control
+def move_by_angle(DataRT, angle_degrees, speed, duration):
+    """
+    Moves the drone in a specific direction based on an angle.
+    0 = Forward, 90 = Right, 180 = Backward, 270 = Left
+    """
+    angle_rad = math.radians(angle_degrees)
+    velocity_x = speed * math.cos(angle_rad)
+    velocity_y = speed * math.sin(angle_rad)
+    send_velocity_command(DataRT, velocity_x, velocity_y, 0, duration)
