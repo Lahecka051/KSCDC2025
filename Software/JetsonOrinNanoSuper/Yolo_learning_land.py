@@ -51,6 +51,7 @@ async def landing_logic(drone):
     print("🛫 Offboard 제어 시작 시도")
     try:
         await drone.offboard.set_velocity_ned(VelocityNedYaw(0.0, 0.0, 0.0, 0.0))
+        await asyncio.sleep(0, 1)
         await drone.offboard.start()
         print("✅ Offboard 시작됨")
     except OffboardError as e:
@@ -75,7 +76,7 @@ async def landing_logic(drone):
         for r in results:
             if r.boxes is not None and len(r.boxes) > 0:
                 for box in r.boxes:
-                    cls = int(box.cls[0])
+                    cls = int(box.cls.item())
                     if cls == 0:
                         x1, y1, x2, y2 = map(int, box.xyxy[0])
                         cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
@@ -90,15 +91,15 @@ async def landing_logic(drone):
             dx = h_center[0] - frame_center[0]
             dy = h_center[1] - frame_center[1]
 
-            vx = pid_x.compute(-dx)
-            vy = pid_y.compute(-dy)
+            vx = max(min(pid_x.compute(-dx), 0.5), -0.5)
+            vy = max(min(pid_y.compute(-dy), 0.5), -0.5)
 
             print(f"🎯 H 감지: center={h_center}, dx={dx}, dy={dy}, area={h_area}")
 
             if abs(dx) < 20 and abs(dy) < 20 and h_area > 12000:
                 landing_ready_count += 1
                 print(f"📍 착륙 준비 상태 유지 {landing_ready_count}/10")
-                if landing_ready_count >= 10:
+                if landing_ready_count >= 20:
                     print("🛬 착륙 지점 도달 → 착륙 실행")
                     await drone.action.land()
                     break
