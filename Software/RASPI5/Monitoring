@@ -1,4 +1,11 @@
-# Install necessary libraries:
+# rpi_map_server_leaflet.py (OpenStreetMap과 Leaflet.js 사용)
+
+# This script runs a Flask-SocketIO web server on a Raspberry Pi.
+# It connects to an ArduPilot Flight Controller (FC) via a telemetry module (e.g., LR900-F)
+# using MAVLink protocol. It receives real-time drone position (GPS) and attitude (Yaw) data,
+# and pushes this data via WebSockets to a web-based OpenStreetMap GUI for visualization.
+
+# Required Python Libraries:
 # pip install Flask Flask-SocketIO pyserial pymavlink
 
 from flask import Flask, render_template_string
@@ -6,56 +13,69 @@ from flask_socketio import SocketIO, emit
 import threading
 import time
 from pymavlink import mavutil
-import math # For math.pi
+import math # For math.pi constant
+import webbrowser
 
 # --- Configuration ---
-# Set the serial port and baudrate for the connection between Raspberry Pi 5 and LR900-F telemetry module.
-# Typically, /dev/ttyUSB0 for a USB-to-Serial adapter, or /dev/ttyS0 / /dev/ttyAMA0 for built-in UART.
-# This must match the Baudrate configured on your FC and LR900-F module in Mission Planner.
-SERIAL_PORT = '/dev/ttyUSB0'  # Example: USB-to-Serial adapter connection. Verify your actual port.
-BAUDRATE = 57600             # Must match FC and telemetry module Baudrate.
+# Set the serial port connected to your telemetry module (e.g., LR900-F) on Raspberry Pi.
+# Common ports: '/dev/ttyUSB0' for USB-to-Serial adapter, '/dev/ttyS0' or '/dev/ttyAMA0' for RPi's built-in UART.
+# Verify your actual port using `ls -l /dev/tty*` after connecting the module.
+SERIAL_PORT = '/dev/ttyUSB0'  # IMPORTANT: 실제 시리얼 포트를 여기에 정확히 입력하세요.
+# 예시: '/dev/ttyS0' 또는 '/dev/ttyAMA0'
+# 포트 확인: 라즈베리파이 터미널에서 `ls -l /dev/tty*` 명령어를 사용하세요.
 
-# Enter your Google Maps API key here!
-# This key is used by the browser to load the Google Maps JavaScript API.
-Maps_API_KEY = "YOUR_Maps_API_KEY" # <<<<<< REPLACE WITH YOUR ACTUAL API KEY! (Google Maps API KEY : https://developers.google.com/maps/documentation/javascript/get-api-key?hl=ko#create-api-keys)
+# Set the baudrate for MAVLink communication.
+# This must match the baudrate configured on your Flight Controller (FC) and telemetry module (e.g., in Mission Planner SERIALx_BAUD).
+BAUDRATE = 57600             # IMPORTANT: 실제 보드레이트를 여기에 정확히 입력하세요.
 
-# --------------------------------------------------
+# For OpenStreetMap + Leaflet.js, no API key is required.
+# ----------------------------------------------------------------------------------------------------
 
 app = Flask(__name__)
-# For development, allow all origins (CORS) to enable connections from any browser.
-# In production, restrict this to specific origins for security.
+# Initialize Socket.IO with the Flask app.
+# cors_allowed_origins="*" allows connections from any origin. For production, specify allowed origins.
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# MAVLink connection object
 mav_connection = None
+# Flag to control the MAVLink receiver thread loop
 mav_running = False
 
-# Variables to store the most recently received drone data
+# Dictionary to store the most recently received drone data.
+# Initial values are set as an example center for Busan, South Korea.
 last_drone_data = {
-    'lat': 35.158580, # Initial latitude (example: near Busan, South Korea)
-    'lon': 129.060120, # Initial longitude (example: near Busan, South Korea)
-    'alt': 0.0,      # Initial altitude
-    'yaw': 0.0       # Initial Yaw in Degrees
+    'lat': 35.158580,  # Latitude
+    'lon': 129.060120, # Longitude
+    'alt': 0.0,        # Altitude in meters (relative to home)
+    'yaw': 0.0         # Yaw in degrees (0-360)
 }
 
-# HTML Template (Google Maps and Socket.IO integration)
-# Includes an example SVG icon path for the drone marker, allowing rotation.
+# HTML Template for the OpenStreetMap GUI using Leaflet.js.
+# This template is rendered and served by the Flask web server.
+# It includes JavaScript to interact with Leaflet.js and Socket.IO for real-time updates.
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Drone Navigation GUI</title>
+    <title>Drone Navigation GUI (OpenStreetMap)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #map {
-            height: 100%;
-            width: 100%;
-        }
+        /* HTML 및 Body가 뷰포트 전체를 차지하도록 설정 */
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* Prevent scrollbars */
+            overflow: hidden; /* 스크롤바 방지 */
+        }
+        /* 지도를 담는 div가 뷰포트 전체를 차지하도록 설정 */
+        #map {
+            height: 100vh; /* Viewport height */
+            width: 100vw;  /* Viewport width */
+            margin: 0;
+            padding: 0;
         }
     </style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
@@ -65,48 +85,41 @@ HTML_TEMPLATE = """
         let map;
         let droneMarker;
         let flightPath;
-        let currentPath = [];
+        let currentPath = []; // Stores historical positions for the flight path
 
-        // Initialize Google Maps
+        // Initialize Leaflet Map
         function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: {lat: 35.158580, lng: 129.060120}, // Initial map center
-                zoom: 18,
-                mapTypeId: 'satellite' // Satellite view
+            map = L.map('map').setView([35.158580, 129.060120], 18); // Default initial map center and zoom
+
+            // Add OpenStreetMap tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            // Custom drone icon for Leaflet (using a simple arrow SVG or FontAwesome/image for better rotation control)
+            // Leaflet's default DivIcon can be styled with CSS for rotation.
+            // 드론 아이콘 색상을 파란색으로 변경 (fill="blue")
+            const droneSvg = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="blue" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15l-4-4h8l-4 4z"/>
+                </svg>`;
+
+            const droneDivIcon = L.divIcon({
+                html: droneSvg,
+                className: 'custom-drone-icon',
+                iconSize: [24, 24], // Size of the div element
+                iconAnchor: [12, 12] // Anchor point (center of the icon)
             });
 
-            // Drone icon (using SVG Path for rotatable marker)
-            const droneSvgIcon = {
-                path: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15l-4-4h8l-4 4z', // Simple circular arrow
-                fillColor: '#FF0000', // Red fill
-                fillOpacity: 0.9,
-                scale: 1.5,
-                strokeColor: 'white',
-                strokeWeight: 1,
-                anchor: new google.maps.Point(12, 12), // Icon center point
-                rotation: 0 // This value will be updated with Yaw data
-            };
+            droneMarker = L.marker([35.158580, 129.060120], {icon: droneDivIcon}).addTo(map);
 
-            // Create drone marker (initial position)
-            droneMarker = new google.maps.Marker({
-                position: {lat: 35.158580, lng: 129.060120}, // Initial position
-                map: map,
-                icon: droneSvgIcon,
-                title: 'Drone Position'
-            });
+            // Polyline for flight path
+            // 비행 경로 색상을 주황색으로 변경 (color: 'orange')
+            flightPath = L.polyline(currentPath, {color: 'orange'}).addTo(map);
 
-            // Create polyline for flight path
-            flightPath = new google.maps.Polyline({
-                path: currentPath,
-                geodesic: true,
-                strokeColor: '#FF0000', // Red path
-                strokeOpacity: 1.0,
-                strokeWeight: 2
-            });
-            flightPath.setMap(map);
-
-            // Connect to Socket.IO server
-            const socket = io(); // Connects to the Flask-SocketIO server running on the RPi
+            // Connect to the Socket.IO server
+            const socket = io();
 
             socket.on('connect', function() {
                 console.log('Connected to WebSocket server');
@@ -119,25 +132,26 @@ HTML_TEMPLATE = """
                 const newAlt = data.alt;
                 const newYaw = data.yaw; // Yaw in Degrees
 
-                const newPos = {lat: newLat, lng: newLon};
+                const newPos = [newLat, newLon];
 
-                droneMarker.setPosition(newPos);
-                // Update icon rotation based on Yaw
-                droneMarker.setIcon({
-                    ...droneSvgIcon,
-                    rotation: newYaw
-                });
-
-                // Update flight path
+                droneMarker.setLatLng(newPos);
+                const iconElement = droneMarker._icon.querySelector('svg');
+                if (iconElement) {
+                    // Adjust rotation if your SVG points right (0 deg) and you want North (up) to be 0 deg.
+                    // If your SVG points UP (North), just use `rotate(${newYaw}deg)`.
+                    iconElement.style.transform = `rotate(${newYaw - 90}deg)`;
+                    iconElement.style.transformOrigin = 'center center';
+                }
+                
                 currentPath.push(newPos);
-                // Keep the path length reasonable (e.g., last 100 points)
+                // Keep the path length reasonable
                 if (currentPath.length > 100) {
                     currentPath.shift();
                 }
-                flightPath.setPath(currentPath);
+                flightPath.setLatLngs(currentPath);
 
-                // Optional: Center map on drone (uncomment if desired)
-                // map.setCenter(newPos);
+                // Center map on drone (optional)
+                map.setView(newPos);
 
                 console.log(`Drone Pos: Lat ${newLat}, Lng ${newLon}, Alt ${newAlt}m, Yaw ${newYaw}°`);
             });
@@ -145,70 +159,138 @@ HTML_TEMPLATE = """
             socket.on('disconnect', function() {
                 console.log('Disconnected from WebSocket server');
             });
+
+            // 지도 컨테이너의 크기 변경 후 호출하여 지도를 다시 그림
+            // (혹시 모를 렌더링 문제 해결을 위해 추가)
+            map.invalidateSize();
         }
+        // Call initMap when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', initMap);
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap"></script>
 </body>
 </html>
 """
 
-# MAVLink Receiver Thread
+# MAVLink Receiver Thread Function
 def mavlink_receiver_thread():
     global mav_connection, mav_running, last_drone_data
-    try:
-        # Establish MAVLink connection
-        mav_connection = mavutil.mavlink_connection(SERIAL_PORT, baud=BAUDRATE, timeout=1)
-        print("Waiting for MAVLink HEARTBEAT...")
-        mav_connection.wait_heartbeat()
-        print(f"MAVLink connected to {SERIAL_PORT}: system {mav_connection.target_system} component {mav_connection.target_component}")
-        mav_running = True
 
-        # Continuously receive and process MAVLink messages
-        while mav_running:
-            # Receive GLOBAL_POSITION_INT (for Lat/Lon/Alt) and ATTITUDE (for Yaw) messages
-            msg = mav_connection.recv_match(type=['GLOBAL_POSITION_INT', 'ATTITUDE'], blocking=False, timeout=0.1)
+    # --- MAVLink 연결 초기화 ---
+    try:
+        # 실제 시리얼 포트를 통해 MAVLink에 연결합니다.
+        # SERIAL_PORT와 BAUDRATE를 Configuration 섹션에서 올바르게 설정했는지 다시 확인하세요!
+        mav_connection = mavutil.mavlink_connection(SERIAL_PORT, baud=BAUDRATE)
+        print(f"MAVLink: Connected to {SERIAL_PORT} at {BAUDRATE} baud.")
+    except Exception as e:
+        print(f"MAVLink Error: Could not connect to {SERIAL_PORT}. Please check port, baudrate, and connection. Error: {e}")
+        mav_connection = None
+        mav_running = False # 연결 실패 시 MAVLink 스레드 종료
+        return
+
+    mav_running = True
+    while mav_running:
+        if not mav_connection:
+            # 연결이 끊겼을 경우를 대비한 안전 장치. (위 try-except 블록에서 이미 처리되지만, 혹시 모를 상황 대비)
+            time.sleep(1)
+            continue
+
+        try:
+            # --- 실제 MAVLink 메시지 수신 로직 ---
+            # 'GLOBAL_POSITION_INT'와 'ATTITUDE' 메시지를 수신 대기합니다.
+            # blocking=True: 메시지가 도착할 때까지 대기합니다.
+            # timeout=1: 1초 동안 메시지가 없으면 None을 반환합니다.
+            msg = mav_connection.recv_match(type=['GLOBAL_POSITION_INT', 'ATTITUDE'], blocking=True, timeout=1)
             
             if msg:
                 if msg.get_type() == 'GLOBAL_POSITION_INT':
-                    last_drone_data['lat'] = msg.lat / 1.0e7
-                    last_drone_data['lon'] = msg.lon / 1.0e7
-                    last_drone_data['alt'] = msg.relative_alt / 1.0e3 # Relative altitude in meters
-                    # print(f"Received GPS: Lat={last_drone_data['lat']:.7f}, Lon={last_drone_data['lon']:.7f}, Alt={last_drone_data['alt']:.2f}")
+                    # 위도와 경도는 1E7 도 단위, 고도는 mm 단위로 전송됩니다.
+                    last_drone_data['lat'] = msg.lat / 1e7
+                    last_drone_data['lon'] = msg.lon / 1e7
+                    # 고도는 상대 고도(지면 위)이며 mm 단위이므로 미터로 변환합니다.
+                    last_drone_data['alt'] = msg.relative_alt / 1000.0
+                    print(f"GPS: Lat={last_drone_data['lat']:.6f}, Lon={last_drone_data['lon']:.6f}, Alt={last_drone_data['alt']:.2f}m")
                 elif msg.get_type() == 'ATTITUDE':
-                    # Convert Yaw from radians to degrees
-                    last_drone_data['yaw'] = msg.yaw * 180 / math.pi
-                    # print(f"Received Attitude: Yaw={last_drone_data['yaw']:.2f}°")
-            
-            # Emit the most recent combined drone data to the web clients via WebSocket
-            # This ensures a consistent update rate to the GUI, independent of MAVLink message frequency.
-            # Sends data approximately every 0.1 seconds (10 Hz).
+                    # Yaw는 라디안 단위이므로 도로 변환합니다.
+                    last_drone_data['yaw'] = math.degrees(msg.yaw)
+                    # Yaw 값을 0-360도 범위로 정규화합니다. (선택 사항이지만 일관성을 위해 권장)
+                    if last_drone_data['yaw'] < 0:
+                        last_drone_data['yaw'] += 360
+                    print(f"ATTITUDE: Yaw={last_drone_data['yaw']:.2f}°")
+            else:
+                # print("MAVLink: No new message received within timeout. Sending last known data.")
+                pass # 새로운 메시지가 없어도 마지막으로 알려진 데이터를 계속 보낼 수 있습니다.
+                     # 이 경우 아무것도 하지 않고 다음 루프를 기다립니다.
+
+            # --- 시뮬레이션 코드 (주석 처리됨) ---
+            # 실제 드론 연결 시에는 아래 코드들을 반드시 주석 처리하거나 삭제해야 합니다.
+            # last_drone_data['lat'] += (math.sin(time.time() * 0.1) * 0.000005)
+            # last_drone_data['lon'] += (math.cos(time.time() * 0.1) * 0.000005)
+            # last_drone_data['alt'] = 50 + (math.sin(time.time() * 0.5) * 10)
+            # last_drone_data['yaw'] += yaw_direction * 2
+            # if last_drone_data['yaw'] >= 360:
+            #     last_drone_data['yaw'] -= 360
+            # elif last_drone_data['yaw'] < 0:
+            #     last_drone_data['yaw'] += 360
+            # --- 시뮬레이션 코드 끝 ---
+
+            # 드론 위치 데이터를 WebSocket을 통해 연결된 모든 웹 클라이언트에 전송합니다.
             socketio.emit('drone_position', last_drone_data)
-            time.sleep(0.1) # WebSocket update frequency
+            time.sleep(0.1) # 100ms마다 데이터 전송
 
-    except Exception as e:
-        print(f"MAVLink receiver error: {e}")
-    finally:
-        if mav_connection and mav_connection.port.is_open:
-            mav_connection.close()
-        print("MAVLink receiver stopped.")
-        mav_running = False
-
-# Flask web route for the main page
+        except Exception as e:
+            print(f"MAVLink Receiver Thread Error (during data reception): {e}")
+            # MAVLink 연결이 끊어졌거나 다른 심각한 오류 발생 시
+            # 재연결 로직을 여기에 추가하거나, 스레드를 종료할 수 있습니다.
+            time.sleep(3) # 오류 발생 시 잠시 대기 후 재시도
+            # mav_running = False # 오류가 계속 발생하면 이 줄을 활성화하여 스레드 종료
+            
+# Flask Routes
 @app.route('/')
 def index():
-    # Pass the Google Maps API key to the HTML template.
-    return render_template_string(HTML_TEMPLATE, api_key=Maps_API_KEY)
+    # 루트 URL로 접속 시 HTML 템플릿 문자열을 렌더링하여 제공합니다.
+    return render_template_string(HTML_TEMPLATE)
 
-# Main execution block
+# Socket.IO Event Handlers
+@socketio.on('connect')
+def test_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def test_disconnect():
+    print('Client disconnected')
+
+# 메인 실행 블록
 if __name__ == '__main__':
-    # Start the MAVLink receiver thread in the background.
-    # The drone/FC should be powered on before starting this script to ensure MAVLink connection.
-    mav_thread = threading.Thread(target=mavlink_receiver_thread)
-    mav_thread.daemon = True # Allows the thread to terminate with the main program
+    # MAVLink 리시버 스레드를 시작합니다. (백그라운드 실행)
+    mav_thread = threading.Thread(target=mavlink_receiver_thread, daemon=True)
     mav_thread.start()
 
-    print(f"Flask-SocketIO server starting on http://0.0.0.0:5000")
-    # Run the Flask-SocketIO web server.
-    # Access this GUI from a web browser on the RPi itself (http://localhost:5000)
-    # or from another device on the same network (http://<RaspberryPi_IP_Address>:5000).
-    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True) # allow_unsafe_werkzeug for development
+    print("Flask-SocketIO server starting in a separate thread...")
+    # Flask-SocketIO 서버를 별도의 데몬 스레드에서 시작합니다.
+    # debug=False로 설정하여 Flask의 리로더로 인한 문제를 방지합니다.
+    server_thread = threading.Thread(
+        target=lambda: socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True),
+        daemon=True
+    )
+    server_thread.start()
+
+    # 서버가 완전히 시작될 시간을 충분히 주기 위해 5초 대기합니다.
+    print("Waiting 5 seconds for the server to fully initialize...")
+    time.sleep(5) # 딜레이를 5초로 늘림
+
+    # 웹 브라우저를 자동으로 엽니다. (서버 시작 후 딜레이 뒤에 호출됨)
+    print("Opening web browser...")
+    # 라즈베리파이 자체에서 실행할 때는 127.0.0.1 (localhost)를 사용합니다.
+    # 만약 다른 기기에서 라즈베리파이에 접속하는 경우, 해당 라즈베리파이의 IP 주소를 사용해야 합니다.
+    webbrowser.open("http://127.0.0.1:5000")
+
+    # 메인 스레드가 즉시 종료되지 않도록 무한 루프를 돌립니다.
+    # (데몬 스레드는 메인 스레드가 종료되면 함께 종료됩니다.)
+    try:
+        while True:
+            time.sleep(1) # 메인 스레드를 활성 상태로 유지
+    except KeyboardInterrupt:
+        print("Server shut down by user.")
+    finally:
+        # 프로그램 종료 시 MAVLink 스레드도 종료되도록 플래그 설정
+        mav_running = False
