@@ -103,7 +103,7 @@ async def landing_logic(drone):
             if abs(dx) < 15 and abs(dy) < 15 and w_h > 100 and h_h > 100:
                 landing_ready_count += 1
                 print(f"착륙 준비 상태 유지 {landing_ready_count}/10")
-                if landing_ready_count >= 20:       #10~20 사이 실제 환경 고려 조정(20 fps 환경 기준 1초 후 착륙)
+                if landing_ready_count >= 20:     #10~20 사이 실제 환경 고려 조정(20 = 20 fps 환경 기준 1초 후 착륙)
                     print("착륙 지점 도달 → 착륙 실행")
                     await drone.action.land()
                     break
