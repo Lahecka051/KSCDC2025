@@ -1,360 +1,123 @@
 import time
-import math
-from pymavlink import mavutil
-import cv2 # OpenCV (add Library)
+from dronekit import connect, VehicleMode, mavutil
 
-# --- 1. MAVLink Communication Setup ---
-# UART port and baudrate for MicoAir H743v2 connected to Jetson Orin Nano
-# The actual port might be /dev/ttyTHS0, /dev/ttyTHS1, etc., depending on the Jetson.
-master = mavutil.mavlink_connection('/dev/ttyTHS1', baud=115200)
-
-# Wait for MAVLink connection (wait until FC boots up and sends MAVLink messages)
-print("Waiting for MAVLink connection...")
-master.wait_heartbeat()
-print(f"Heartbeat received! System: {master.target_system}, Component: {master.target_component}")
-
-# --- 2. Drone State Variables Initialization ---
-# GPS Data (GLOBAL_POSITION_INT)
-current_lat = 0.0   # Latitude (degrees)
-current_lon = 0.0   # Longitude (degrees)
-current_alt_relative = 0.0 # Relative altitude (m, from Home)
-gps_fix_type = 0    # GPS Fix Type (0: No Fix, 1: No GPS, 2: 2D Fix, 3: 3D Fix, ...)
-
-# YPR (ATTITUDE)
-current_roll_rad = 0.0  # Roll angle (radians)
-current_pitch_rad = 0.0 # Pitch angle (radians)
-current_yaw_rad = 0.0   # Yaw angle (radians)
-
-# ACC (SCALED_IMU2)
-current_acc_x = 0.0 # X-axis acceleration (m/s^2)
-current_acc_y = 0.0 # Y-axis acceleration (m/s^2)
-current_acc_z = 0.0 # Z-axis acceleration (m/s^2)
-
-# Velocity (LOCAL_POSITION_NED)
-current_vx = 0.0    # North-direction velocity (m/s)
-current_vy = 0.0    # East-direction velocity (m/s)
-current_vz = 0.0    # Down-direction velocity (m/s) (negative for upward)
-
-# --- 3. Flight Mode Setting and Arming Functions ---
-def set_mode(mode):
-    """Change to the specified flight mode"""
-    mode_id = master.mode_mapping()[mode]
-    master.set_mode(mode_id)
-    print(f"Mode change requested: {mode}")
-    while True:
-        msg = master.recv_match(type='HEARTBEAT', blocking=True)
-        if msg and msg.custom_mode == mode_id:
-            print(f"Mode change complete: {mode}")
-            break
-        time.sleep(0.1)
-
-def arm_vehicle():
-    """Arm the drone"""
-    print("Requesting drone arm...")
-    master.arducopter_arm()
-    master.motors_armed_wait()
-    print("Drone armed!")
-
-def disarm_vehicle():
-    """Disarm the drone"""
-    print("Requesting drone disarm...")
-    master.arducopter_disarm()
-    master.motors_disarmed_wait()
-    print("Drone disarmed!")
-
-# --- 4. Drone State Update Function ---
-def update_drone_state(msg):
-    """Update drone state variables based on received MAVLink messages"""
-    global current_lat, current_lon, current_alt_relative, gps_fix_type, \
-           current_roll_rad, current_pitch_rad, current_yaw_rad, \
-           current_acc_x, current_acc_y, current_acc_z, \
-           current_vx, current_vy, current_vz
-
-    if msg.get_type() == 'GLOBAL_POSITION_INT':
-        current_lat = msg.lat / 1e7
-        current_lon = msg.lon / 1e7
-        current_alt_relative = msg.relative_alt / 1000.0 # mm -> m
-
-    elif msg.get_type() == 'GPS_RAW_INT': # Added for accurate GPS Fix Type
-        gps_fix_type = msg.fix_type
-
-    elif msg.get_type() == 'ATTITUDE':
-        current_roll_rad = msg.roll
-        current_pitch_rad = msg.pitch
-        current_yaw_rad = msg.yaw
-
-    elif msg.get_type() == 'SCALED_IMU2':
-        current_acc_x = msg.xacc / 1000.0 * 9.81
-        current_acc_y = msg.yacc / 1000.0 * 9.81
-        current_acc_z = msg.zacc / 1000.0 * 9.81
-
-    elif msg.get_type() == 'LOCAL_POSITION_NED':
-        current_vx = msg.vx
-        current_vy = msg.vy
-        current_vz = msg.vz
-
-# --- 5. Send Target Direction Data (Velocity) Function ---
-def send_velocity_target(vx, vy, vz, frame=mavutil.mavlink.MAV_FRAME_LOCAL_NED):
+def connect_drone(connection_string, baud=921600):
     """
-    Sends drone velocity commands relative to the NED (North-East-Down) frame.
-    """
-    type_mask = (
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_X_IGNORE |
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_Y_IGNORE |
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_Z_IGNORE |
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_AX_IGNORE |
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_AY_IGNORE |
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_AZ_IGNORE |
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_IGNORE |
-        mavutil.mavlink.POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE
-    )
-
-    master.mav.set_position_target_local_ned_send(
-        0,
-        master.target_system,
-        master.target_component,
-        frame,
-        type_mask,
-        0, 0, 0,
-        vx, vy, vz,
-        0, 0, 0,
-        0, 0
-    )
-
-# --- 6. Latitude/Longitude to Meters Utility (Approximate) ---
-EARTH_RADIUS_M = 6378137.0
-
-def latlon_to_meters(lat1, lon1, lat2, lon2):
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-    lat_mid = math.radians((lat1 + lat2) / 2)
+    지정한 UART 포트와 속도로 드론에 연결합니다.
     
-    delta_north = delta_lat * (EARTH_RADIUS_M * math.pi / 180.0)
-    delta_east = delta_lon * (EARTH_RADIUS_M * math.pi / 180.0 * math.cos(math.radians(lat1)))
-    
-    return delta_north, delta_east
-
-# --- 7. CSI Camera Check Function ---
-def check_csi_camera(camera_index=0):
-    """
-    Checks if a CSI camera is accessible via OpenCV.
     Args:
-        camera_index (int): The index of the camera to check (e.g., 0 for /dev/video0).
+        connection_string (str): UART 포트 (예: '/dev/ttyAMA0', 'COM3')
+        baud (int): 통신 속도 (ArduPilot 설정과 일치해야 함)
+
     Returns:
-        bool: True if camera is successfully opened, False otherwise.
+        Vehicle: 연결된 vehicle 객체, 실패 시 None
     """
-    # GStreamer pipeline for Jetson CSI camera
-    # Adjust width, height, and framerate as needed for your camera
-    # The '0' in 'nvarguscamerasrc sensor-id=0' means the first CSI camera.
-    gst_pipeline = (
-        f"nvarguscamerasrc sensor-id={camera_index} ! "
-        "video/x-raw(memory:NVMM), width=(int)1280, height=(int)720, framerate=(fraction)30/1 ! "
-        "nvvidconv ! video/x-raw, format=(string)BGRx ! "
-        "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
-    )
-    
-    cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-    
-    if not cap.isOpened():
-        print(f"ERROR: Could not open CSI camera with index {camera_index}.")
-        print("Please ensure the camera is connected and JetPack drivers are installed.")
-        return False
-    
-    ret, frame = cap.read()
-    if not ret:
-        print(f"ERROR: Could not read frame from CSI camera with index {camera_index}.")
-        cap.release()
-        return False
-    
-    print(f"CSI Camera (index {camera_index}) successfully opened and read a frame.")
-    cap.release() # Release the camera resource
-    return True
-
-# --- 8. Takeoff Function ---
-def takeoff(target_altitude):
-    """
-    Makes the drone take off to a specified target altitude.
-    Args:
-        target_altitude (float): The desired altitude in meters.
-    """
-    print(f"Taking off to {target_altitude:.2f}m...")
-    takeoff_start_time = time.time()
-    max_takeoff_duration = 30 # Max seconds to attempt takeoff
-
-    Kp_takeoff = 0.8 # Proportional gain for takeoff vertical speed
-    takeoff_speed = 1.0 # m/s, max upward speed during takeoff
-
-    while True:
-        # Receive MAVLink messages and update state
-        msg = master.recv_match(type=['GLOBAL_POSITION_INT', 'ATTITUDE', 'LOCAL_POSITION_NED', 'GPS_RAW_INT'],
-                                blocking=False, timeout=0.1)
-        if msg:
-            update_drone_state(msg)
-        
-        # Check GPS Fix during takeoff
-        if gps_fix_type < 3:
-            print("WARNING: GPS Fix lost during takeoff! Initiating emergency stop.")
-            send_velocity_target(0, 0, 0) # Stop all movement
-            raise RuntimeError("GPS Fix lost during takeoff.")
-
-        altitude_error = target_altitude - current_alt_relative
-        
-        # Calculate vertical velocity command for takeoff
-        # If below target, move up. If above target, move down (or hold)
-        vz_cmd = -altitude_error * Kp_takeoff # Negative for upward movement
-        vz_cmd = max(min(vz_cmd, takeoff_speed), -takeoff_speed) # Limit speed
-
-        # Ensure we are always trying to go up if below target, but not fall if above
-        if current_alt_relative < target_altitude:
-            vz_cmd = max(vz_cmd, -takeoff_speed) # Make sure it always tries to go up
-
-        # Send velocity command (0 horizontal, calculated vertical)
-        send_velocity_target(0.0, 0.0, vz_cmd)
-
-        print(f"Takeoff progress: Current Alt={current_alt_relative:.2f}m / Target Alt={target_altitude:.2f}m | Vz_cmd={vz_cmd:.2f}m/s")
-
-        # Check if target altitude is reached or exceeded
-        # And if vertical velocity is near zero
-        if current_alt_relative >= target_altitude * 0.95 and abs(current_vz) < 0.2: # Within 5% of target and slowing down
-            print(f"Reached target altitude of {target_altitude:.2f}m. Takeoff complete.")
-            send_velocity_target(0, 0, 0) # Stop vertical movement
-            break
-        
-        if time.time() - takeoff_start_time > max_takeoff_duration:
-            print(f"ERROR: Takeoff failed to reach {target_altitude:.2f}m within {max_takeoff_duration} seconds. Current Alt: {current_alt_relative:.2f}m.")
-            send_velocity_target(0, 0, 0) # Stop movement
-            raise RuntimeError("Takeoff timed out.")
-
-        time.sleep(0.1) # 100ms interval
-
-# --- 9. Main Control Logic ---
-if __name__ == "__main__":
     try:
-        # Request MAVLink message streams
-        master.mav.request_data_stream_send(master.target_system, master.target_component,
-                                            mavutil.mavlink.MAV_DATA_STREAM_POSITION, 5, 1) 
-        master.mav.request_data_stream_send(master.target_system, master.target_component,
-                                            mavutil.mavlink.MAV_DATA_STREAM_EXTRA1, 10, 1) 
-        master.mav.request_data_stream_send(master.target_system, master.target_component,
-                                            mavutil.mavlink.MAV_DATA_STREAM_RAW_IMU, 10, 1) 
-        master.mav.request_data_stream_send(master.target_system, master.target_component,
-                                            mavutil.mavlink.MAV_DATA_STREAM_EXTRA3, 10, 1) 
+        print(f"Connecting to vehicle on: {connection_string} at {baud} baud...")
+        vehicle = connect(connection_string, baud=baud, wait_ready=True)
+        print("Vehicle connected!")
+        return vehicle
+    except Exception as e:
+        print(f"Failed to connect: {e}")
+        return None
 
-        # --- Pre-flight Checks ---
-
-        # 1. GPS Fix Waiting Logic
-        print("Waiting for GPS Fix (3D Fix or better)...")
-        gps_wait_start_time = time.time()
-        while gps_fix_type < 3: 
-            msg = master.recv_match(type=['GPS_RAW_INT', 'GLOBAL_POSITION_INT', 'HEARTBEAT'], blocking=True, timeout=1.0)
-            if msg:
-                update_drone_state(msg)
-                print(f"Current GPS Fix Type: {gps_fix_type} (Wait time: {time.time() - gps_wait_start_time:.1f}s)")
-            if time.time() - gps_wait_start_time > 60: 
-                print("GPS Fix wait time exceeded. Exiting.")
-                exit() 
-        print(f"GPS 3D Fix acquired! Lat={current_lat:.6f}, Lon={current_lon:.6f}, Alt={current_alt_relative:.2f}m")
-
-        # 2. CSI Camera Check
-        print("Checking CSI Camera status...")
-        if not check_csi_camera(camera_index=0): # Assuming CSI camera is at index 0
-            print("CSI Camera check failed. Exiting.")
-            exit()
-        print("CSI Camera check passed.")
-
-        # --- Autonomous Flight Sequence ---
-
-        # Set Flight Mode
-        set_mode('GUIDED')
+def arm_and_takeoff(vehicle, target_altitude):
+    """
+    드론을 Arm하고 지정된 고도까지 이륙시킵니다.
+    GUIDED 모드에서만 작동합니다.
+    """
+    print("Basic pre-arm checks")
+    while not vehicle.is_armable:
+        print(" Waiting for vehicle to initialise...")
         time.sleep(1)
 
-        # Arm Drone
-        # WARNING: For real drones, ensure safety and remove propellers before testing.
-        # arm_vehicle()
-        # time.sleep(2)
+    print("Arming motors")
+    vehicle.mode = VehicleMode("GUIDED")
+    vehicle.armed = True
 
-        print("\nStarting autonomous flight sequence...")
+    while not vehicle.armed:
+        print(" Waiting for arming...")
+        time.sleep(1)
 
-        # Takeoff to 5 meters
-        takeoff_altitude = 5.0
-        takeoff(takeoff_altitude)
+    print(f"Taking off to {target_altitude}m!")
+    vehicle.simple_takeoff(target_altitude)
 
-        # --- Hovering Logic (after successful takeoff) ---
-        print("\nInitiating hovering logic...")
-        # Set current GPS position as the hovering target after takeoff
-        hover_latitude = current_lat
-        hover_longitude = current_lon
-        hover_altitude = takeoff_altitude # Hover at the takeoff altitude
-        
-        print(f"Hovering target: Lat={hover_latitude:.6f}, Lon={hover_longitude:.6f}, Alt={hover_altitude:.2f}m")
+    # 이륙 완료까지 대기
+    while True:
+        current_altitude = vehicle.location.global_relative_frame.alt
+        print(f" Altitude: {current_altitude:.2f}m")
+        if current_altitude >= target_altitude * 0.95:
+            print("Target altitude reached")
+            break
+        time.sleep(1)
 
-        loop_start_time = time.time()
-        hover_duration = 20 # Hover for 20 seconds
-        
-        while time.time() - loop_start_time < hover_duration:
-            # Receive MAVLink messages and update state
-            msg = master.recv_match(type=['GLOBAL_POSITION_INT', 'ATTITUDE', 'SCALED_IMU2', 'LOCAL_POSITION_NED', 'GPS_RAW_INT'],
-                                    blocking=False, timeout=0.1)
-            if msg:
-                update_drone_state(msg)
-            
-            # GPS Fix status re-check (can be lost during flight)
-            if gps_fix_type < 3:
-                print("WARNING: GPS Fix lost during flight! Initiating emergency stop.")
-                send_velocity_target(0, 0, 0) # Send stop command first
-                break # Exit loop
-            
-            # Hovering Control Logic
-            delta_north, delta_east = latlon_to_meters(
-                current_lat, current_lon,
-                hover_latitude, hover_longitude
-            )
-            
-            altitude_error = hover_altitude - current_alt_relative
+def send_velocity_command(vehicle, velocity_x, velocity_y, velocity_z, duration):
+    """
+    드론에 특정 속도(NED 좌표계 기준) 명령을 일정 시간 동안 보냅니다.
+    
+    - velocity_x > 0: 전진 (North)
+    - velocity_y > 0: 오른쪽 (East)
+    - velocity_z > 0: 하강 (Down)  <- 주의: 상승은 음수(-) 값 사용
+    """
+    msg = vehicle.message_factory.set_position_target_local_ned_encode(
+        0,       # time_boot_ms (not used)
+        0, 0,    # target_system, target_component
+        mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED, # 기체 기준 좌표계 사용
+        0b0000111111000111, # type_mask: 속도만 제어
+        0, 0, 0, # x, y, z 위치 (사용 안 함)
+        velocity_x, velocity_y, velocity_z, # x, y, z 속도 (m/s)
+        0, 0, 0, # x, y, z 가속도 (사용 안 함)
+        0, 0)    # yaw, yaw_rate (사용 안 함)
 
-            Kp_pos = 0.5 
-            Kp_alt = 0.5 
-            max_speed_xy = 1.5 
-            max_speed_z = 1.0 
+    print(f"Sending velocity command: vx={velocity_x}, vy={velocity_y}, vz={velocity_z} for {duration}s")
+    for _ in range(duration):
+        vehicle.send_mavlink(msg)
+        time.sleep(1)
+    
+    # 정지 명령 (중요)
+    stop_msg = vehicle.message_factory.set_position_target_local_ned_encode(
+        0, 0, 0, mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
+        0b0000111111000111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    vehicle.send_mavlink(stop_msg)
+    print("Movement stopped.")
 
-            vx_cmd = delta_north * Kp_pos
-            vy_cmd = delta_east * Kp_pos
-            
-            current_speed_xy_cmd = math.sqrt(vx_cmd**2 + vy_cmd**2)
-            if current_speed_xy_cmd > max_speed_xy:
-                vx_cmd = (vx_cmd / current_speed_xy_cmd) * max_speed_xy
-                vy_cmd = (vy_cmd / current_speed_xy_cmd) * max_speed_xy
-            
-            vz_cmd = -altitude_error * Kp_alt 
-            vz_cmd = max(min(vz_cmd, max_speed_z), -max_speed_z) 
 
-            if abs(delta_north) < 0.3 and abs(delta_east) < 0.3 and \
-               abs(altitude_error) < 0.1 and \
-               abs(current_vx) < 0.1 and abs(current_vy) < 0.1 and abs(current_vz) < 0.1:
-                vx_cmd = 0.0
-                vy_cmd = 0.0
-                vz_cmd = -altitude_error * Kp_alt 
-                if abs(altitude_error) < 0.05:
-                     vz_cmd = 0.0
-                print("Hovering...")
-            
-            send_velocity_target(vx_cmd, vy_cmd, vz_cmd, frame=mavutil.mavlink.MAV_FRAME_LOCAL_NED)
+# --- 단축 명령어 함수들 ---
 
-            print(f"Time: {time.time()-loop_start_time:.1f}s | "
-                  f"GPS: ({current_lat:.6f}, {current_lon:.6f}, {current_alt_relative:.2f}m) Fix:{gps_fix_type} | "
-                  f"YPR(deg): ({math.degrees(current_roll_rad):.1f}, {math.degrees(current_pitch_rad):.1f}, {math.degrees(current_yaw_rad):.1f}) | "
-                  f"ACC(m/s2): ({current_acc_x:.2f}, {current_acc_y:.2f}, {current_acc_z:.2f}) | "
-                  f"Vel_cmd(m/s): ({vx_cmd:.2f}, {vy_cmd:.2f}, {vz_cmd:.2f})")
+def move_forward(vehicle, speed, duration):
+    """초당 'speed'미터의 속도로 'duration'초 동안 전진"""
+    send_velocity_command(vehicle, speed, 0, 0, duration)
 
-            time.sleep(0.1) 
+def move_backward(vehicle, speed, duration):
+    """초당 'speed'미터의 속도로 'duration'초 동안 후진"""
+    send_velocity_command(vehicle, -speed, 0, 0, duration)
 
-        print("\nAutonomous flight control finished.")
+def move_right(vehicle, speed, duration):
+    """초당 'speed'미터의 속도로 'duration'초 동안 오른쪽으로 이동"""
+    send_velocity_command(vehicle, 0, speed, 0, duration)
 
-    except KeyboardInterrupt:
-        print("\nProgram terminated by user.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        # Always disarm drone for safety
-        # disarm_vehicle()
-        print("Program finished.")
+def move_left(vehicle, speed, duration):
+    """초당 'speed'미터의 속도로 'duration'초 동안 왼쪽으로 이동"""
+    send_velocity_command(vehicle, 0, -speed, 0, duration)
+
+def move_up(vehicle, speed, duration):
+    """초당 'speed'미터의 속도로 'duration'초 동안 상승"""
+    send_velocity_command(vehicle, 0, 0, -speed, duration) # 상승은 z축 속도가 음수(-)
+
+def move_down(vehicle, speed, duration):
+    """초당 'speed'미터의 속도로 'duration'초 동안 하강"""
+    send_velocity_command(vehicle, 0, 0, speed, duration) # 하강은 z축 속도가 양수(+)
+
+def land_and_close(vehicle):
+    """
+    드론을 착륙시키고 연결을 종료합니다.
+    """
+    print("Landing...")
+    vehicle.mode = VehicleMode("LAND")
+    while vehicle.armed:
+        print(" Waiting for disarming...")
+        time.sleep(1)
+    
+    print("Vehicle landed and disarmed.")
+    vehicle.close()
+    print("Connection closed.")
