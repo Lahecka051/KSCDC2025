@@ -87,10 +87,9 @@ def move_down(DataRT, speed, duration):
 
 # Angle-Based Control
 def move_by_angle(DataRT, angle_degrees, speed, duration):
-    """
-    Moves the drone in a specific direction based on an angle.
-    0 = Forward, 90 = Right, 180 = Backward, 270 = Left
-    """
+
+## --- 0 = Forward, 90 = Right, 180 = Backward, 270 = Left ---
+
     angle_rad = math.radians(angle_degrees)
     velocity_x = speed * math.cos(angle_rad)
     velocity_y = speed * math.sin(angle_rad)
