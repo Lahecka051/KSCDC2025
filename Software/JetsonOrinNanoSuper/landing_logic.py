@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import time
 
-marker_path = "/Users/GwonHyeokJun/Desktop/Marker.png"
+marker_path = "파일 경로"
 marker = cv2.imread(marker_path, cv2.IMREAD_GRAYSCALE)
 if marker is None:
     raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {marker_path}")
@@ -16,7 +16,7 @@ if not cap.isOpened():
 while True:
     ret, frame = cap.read()
     if not ret:
-        print("❌ 프레임을 읽을 수 없습니다.")
+        print("프레임을 읽을 수 없습니다.")
         break
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -76,11 +76,11 @@ while True:
                 cv2.line(frame, (center_x_start, center_y_start + i * sub_step_y),
                          (center_x_start + center_w, center_y_start + i * sub_step_y), (0, 255, 255), 1)
 
-            print(f"🎯 마커 감지 → 전체 9분할 {position}번 영역 → 내부 9분할 {sub_position}번 영역")
+            print(f"마커 감지 → 전체 9분할 {position}번 영역 → 내부 9분할 {sub_position}번 영역")
         else:
-            print(f"🎯 마커 감지 → {position}번 영역")
+            print(f"마커 감지 → {position}번 영역")
     else:
-        print("🔍 마커 없음")
+        print("마커 없음")
 
     cv2.imshow("Marker Tracking (9-Split + 5번 9-Split)", frame)
     if cv2.waitKey(1) & 0xFF == 27:
