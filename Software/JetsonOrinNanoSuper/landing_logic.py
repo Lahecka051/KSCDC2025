@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 import time
 
-marker_path = "파일 경로"
-marker = cv2.imread(marker_path, cv2.IMREAD_GRAYSCALE)
+marker_path = "파일 경로" 
+marker = cv2.imread(marker_path, cv2.IMREAD_GRAYSCALE) # 이미지 그레이 스케일로 읽음
 if marker is None:
     raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {marker_path}")
 
-marker = cv2.resize(marker, (100, 100))
+marker = cv2.resize(marker, (100, 100)) # 테스트 이미지가 웹캠 해상도보다 커서 크기 조정, 템플릿 너무 크면 매칭 속도 느려짐
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0) # 웹캠 연결 객체 생성(0은 기본 카메라)
 if not cap.isOpened():
     raise RuntimeError("웹캠을 열 수 없습니다.")
 
@@ -19,8 +19,8 @@ while True:
         print("프레임을 읽을 수 없습니다.")
         break
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    h, w = gray.shape
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # 현재 프레임을 그레이스케일 이미지로 변환(매칭 위함)
+    h, w = gray.shape # 프레임 가로(h), 세로(w) 픽셀 수 가져옴
 
     # 1. 전체 화면 3x3 그리기
     step_x = w // 3
@@ -29,10 +29,10 @@ while True:
         cv2.line(frame, (i * step_x, 0), (i * step_x, h), (0, 255, 0), 2)
         cv2.line(frame, (0, i * step_y), (w, i * step_y), (0, 255, 0), 2)
 
-    res = cv2.matchTemplate(gray, marker, cv2.TM_CCOEFF_NORMED)
-    _, max_val, _, max_loc = cv2.minMaxLoc(res)
-    threshold = 0.6
-    marker_center = None
+    res = cv2.matchTemplate(gray, marker, cv2.TM_CCOEFF_NORMED) # res = 유사도 맵(0~1), 값 높을수록 높은 매칭
+    _, max_val, _, max_loc = cv2.minMaxLoc(res)                 # 최대 유사도(max_val), 그 위치(max_loc)
+    threshold = 0.6                                             # max_val > 0.6(threshold)이면 마커 인식되었다고 판단
+    marker_center = None                                        # 기본값 = 인식 실패(마커 없음)
 
     if max_val > threshold:
         t_h, t_w = marker.shape
