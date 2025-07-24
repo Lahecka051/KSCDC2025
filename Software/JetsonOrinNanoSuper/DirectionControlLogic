@@ -1,96 +1,56 @@
+# drone_controller.py
 import time
-import math # For trigonometric functions
-from dronekit import connect, VehicleMode, mavutil
+import math
+from dronekit import mavutil
 
-def connect_drone(connection_string, baud=921600):
+# Adjust the default vertical speed here if needed
+VERTICAL_SPEED = 1.0  # m/s
 
-## --- Connects to the drone using the specified UART port and baud rate ---
-
-    try:
-        DataRT = connect(connection_string, baud=baud, wait_ready=True)
-        return DataRT
-    except Exception:
-        return None
-
-def takeoff(DataRT, target_altitude):
-    
-## --- Arms the drone and takes off to a specified altitude in GUIDED mode ---
-
-    while not DataRT.is_armable:
-        time.sleep(1)
-
-    DataRT.mode = VehicleMode("GUIDED")
-    DataRT.armed = True
-
-    while not DataRT.armed:
-        time.sleep(1)
-
-    DataRT.simple_takeoff(target_altitude)
-
-    while True:
-        current_altitude = DataRT.location.global_relative_frame.alt
-        if current_altitude >= target_altitude * 0.95:
-            break
-        time.sleep(1)
-
-def send_velocity_command(DataRT, velocity_x, velocity_y, velocity_z, duration):
-
-## --- Sends a velocity command to the drone for a specified duration ---
-
+def hover(DataRT, duration):
+    """
+    Commands the drone to hover in place for a specific duration.
+    This is achieved by sending a velocity command with all speeds set to zero.
+    """
     msg = DataRT.message_factory.set_position_target_local_ned_encode(
-        0, 0, 0,
-        mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
-        0b0000111111000111,
-        0, 0, 0,
-        velocity_x, velocity_y, velocity_z,
-        0, 0, 0, 0, 0)
+        0, 0, 0, mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
+        0b0000111111000111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     for _ in range(duration):
         DataRT.send_mavlink(msg)
         time.sleep(1)
+
+def execute_flight_command(DataRT, vertical_mode, angle, speed, duration):
+    """
+    Executes a flight command based on 4 parameters.
+    """
+    if DataRT.mode.name != "GUIDED":
+        print("Error: Vehicle must be in GUIDED mode.")
+        return
+
+    # Translate vertical_mode string into a numerical vz_speed
+    if vertical_mode == 'ascend':
+        vz_speed = -VERTICAL_SPEED
+    elif vertical_mode == 'descend':
+        vz_speed = VERTICAL_SPEED
+    else: # 'level'
+        vz_speed = 0.0
+
+    # Calculate horizontal velocities
+    angle_rad = math.radians(angle)
+    vx = speed * math.cos(angle_rad)
+    vy = speed * math.sin(angle_rad)
     
+    # Create and send the MAVLink message
+    msg = DataRT.message_factory.set_position_target_local_ned_encode(
+        0, 0, 0, mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
+        0b0000111111000111, 0, 0, 0, vx, vy, vz_speed, 0, 0, 0, 0, 0)
+
+    for _ in range(duration):
+        DataRT.send_mavlink(msg)
+        time.sleep(1)
+
+    # Send a stop command to hover in place after the movement
     stop_msg = DataRT.message_factory.set_position_target_local_ned_encode(
         0, 0, 0, mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
         0b0000111111000111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     DataRT.send_mavlink(stop_msg)
-
-def land(DataRT):
-    """
-    Lands the drone and closes the connection.
-    """
-    DataRT.mode = VehicleMode("LAND")
-    while DataRT.armed:
-        time.sleep(1)
-    
-    DataRT.close()
-
-## --- Movement Control Functions ---
-
-# Simple 6-Directional Commands
-def move_forward(DataRT, speed, duration):
-    send_velocity_command(DataRT, speed, 0, 0, duration)
-
-def move_backward(DataRT, speed, duration):
-    send_velocity_command(DataRT, -speed, 0, 0, duration)
-
-def move_right(DataRT, speed, duration):
-    send_velocity_command(DataRT, 0, speed, 0, duration)
-
-def move_left(DataRT, speed, duration):
-    send_velocity_command(DataRT, 0, -speed, 0, duration)
-
-def move_up(DataRT, speed, duration):
-    send_velocity_command(DataRT, 0, 0, -speed, duration)
-
-def move_down(DataRT, speed, duration):
-    send_velocity_command(DataRT, 0, 0, speed, duration)
-
-# Angle-Based Control
-def move_by_angle(DataRT, angle_degrees, speed, duration):
-
-## --- 0 = Forward, 90 = Right, 180 = Backward, 270 = Left ---
-
-    angle_rad = math.radians(angle_degrees)
-    velocity_x = speed * math.cos(angle_rad)
-    velocity_y = speed * math.sin(angle_rad)
-    send_velocity_command(DataRT, velocity_x, velocity_y, 0, duration)
