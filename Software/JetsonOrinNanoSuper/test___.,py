@@ -1,96 +1,91 @@
-from ultralytics import YOLO
 import cv2
-import cv2.aruco as aruco
+import numpy as np
+import time
 
-# YOLO 모델 로딩
-model = YOLO("best.pt")
+# --- 마커 이미지 불러오기 ---
+marker_path = "파일 경로"  # 실제 경로로 수정 필요
+marker = cv2.imread(marker_path, cv2.IMREAD_GRAYSCALE)
+if marker is None:
+    raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {marker_path}")
 
-# 카메라 열기
+marker = cv2.resize(marker, (100, 100))
+
+# --- 카메라 설정 ---
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     print("카메라 열기 실패")
     exit()
 
-# 화면 크기
+# 화면 크기 가져오기
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-w1, w2 = frame_width // 3, 2 * frame_width // 3
-h1, h2 = frame_height // 3, 2 * frame_height // 3
 
-# YOLO 클래스 이름
-class_names = model.names
-
-# ArUco 마커 딕셔너리 설정
-aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-parameters = aruco.DetectorParameters()
-
-# 위치 레이블 함수
-def get_position_label(x, y):
-    if y < h1:
-        vertical = "위"
-    elif y < h2:
-        vertical = "가운데"
-    else:
-        vertical = "아래"
-
-    if x < w1:
-        horizontal = "왼쪽"
-    elif x < w2:
-        horizontal = "가운데"
-    else:
-        horizontal = "오른쪽"
-
-    return f"{vertical}-{horizontal}"
+step_x = frame_width // 3
+step_y = frame_height // 3
 
 while True:
     ret, frame = cap.read()
     if not ret:
+        print("프레임을 읽을 수 없습니다.")
         break
 
-    # YOLO 추론
-    results = model.predict(frame, imgsz=640, conf=0.5, verbose=False)
-    annotated_frame = results[0].plot()
-
-    # YOLO 박스 처리
-    for box in results[0].boxes:
-        cls_id = int(box.cls[0])
-        class_name = class_names[cls_id]
-        x1, y1, x2, y2 = box.xyxy[0]
-        center_x = int((x1 + x2) / 2)
-        center_y = int((y1 + y2) / 2)
-
-        label = get_position_label(center_x, center_y)
-        print(f"🔥 {class_name}: {label}")
-
-        # 시각화
-        cv2.circle(annotated_frame, (center_x, center_y), 5, (0, 0, 255), -1)
-        cv2.putText(annotated_frame, f"{class_name}: {label}", (center_x, center_y - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
-
-    # ArUco 마커 탐지
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    detector = aruco.ArucoDetector(aruco_dict, parameters)
-    corners, ids, _ = detector.detectMarkers(gray)
+    h, w = gray.shape
 
-    if ids is not None:
-        for i, corner in enumerate(corners):
-            # 마커 중심 계산
-            corner_points = corner[0]
-            cx = int(corner_points[:, 0].mean())
-            cy = int(corner_points[:, 1].mean())
+    # 1. 전체 화면 3x3 그리드
+    for i in range(1, 3):
+        cv2.line(frame, (i * step_x, 0), (i * step_x, h), (0, 255, 0), 2)
+        cv2.line(frame, (0, i * step_y), (w, i * step_y), (0, 255, 0), 2)
 
-            label = get_position_label(cx, cy)
-            print(f"🛬 ArUco ID {ids[i][0]}: {label}")
+    res = cv2.matchTemplate(gray, marker, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, max_loc = cv2.minMaxLoc(res)
+    threshold = 0.6
+    marker_center = None
 
-            # 마커 시각화
-            cv2.polylines(annotated_frame, [corner_points.astype(int)], True, (0, 255, 0), 2)
-            cv2.circle(annotated_frame, (cx, cy), 5, (0, 255, 0), -1)
-            cv2.putText(annotated_frame, f"ID:{ids[i][0]} {label}", (cx, cy - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    if max_val > threshold:
+        t_h, t_w = marker.shape
+        top_left = max_loc
+        bottom_right = (top_left[0] + t_w, top_left[1] + t_h)
+        cv2.rectangle(frame, top_left, bottom_right, (0, 0, 255), 2)
+        marker_center = (top_left[0] + t_w // 2, top_left[1] + t_h // 2)
+        cv2.circle(frame, marker_center, 5, (255, 0, 0), -1)
 
-    # 결과 표시
-    cv2.imshow("YOLO + ArUco Detection", annotated_frame)
+    if marker_center:
+        col = marker_center[0] // step_x + 1
+        row = marker_center[1] // step_y + 1
+        position = (row - 1) * 3 + col
 
+        if position == 5:
+            # 중앙 영역의 9분할
+            center_x_start = step_x
+            center_y_start = step_y
+            center_w = step_x
+            center_h = step_y
+
+            sub_step_x = center_w // 3
+            sub_step_y = center_h // 3
+
+            relative_x = marker_center[0] - center_x_start
+            relative_y = marker_center[1] - center_y_start
+
+            sub_col = relative_x // sub_step_x + 1
+            sub_row = relative_y // sub_step_y + 1
+            sub_position = (sub_row - 1) * 3 + sub_col
+
+            for i in range(1, 3):
+                cv2.line(frame, (center_x_start + i * sub_step_x, center_y_start),
+                         (center_x_start + i * sub_step_x, center_y_start + center_h), (0, 255, 255), 1)
+                cv2.line(frame, (center_x_start, center_y_start + i * sub_step_y),
+                         (center_x_start + center_w, center_y_start + i * sub_step_y), (0, 255, 255), 1)
+
+            print(f"마커 감지 → 전체 9분할 {position}번 영역 → 내부 9분할 {sub_position}번 영역")
+        else:
+            print(f"마커 감지 → {position}번 영역")
+    else:
+        print("마커 없음")
+
+    # --- 출력 ---
+    cv2.imshow("Marker Tracking (Fixed Camera)", frame)
     if cv2.waitKey(1) & 0xFF == 27:
         break
 
