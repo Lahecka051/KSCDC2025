@@ -1,0 +1,98 @@
+from ultralytics import YOLO
+import cv2
+import cv2.aruco as aruco
+
+# YOLO 모델 로딩
+model = YOLO("best.pt")
+
+# 카메라 열기
+cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("카메라 열기 실패")
+    exit()
+
+# 화면 크기
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+w1, w2 = frame_width // 3, 2 * frame_width // 3
+h1, h2 = frame_height // 3, 2 * frame_height // 3
+
+# YOLO 클래스 이름
+class_names = model.names
+
+# ArUco 마커 딕셔너리 설정
+aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+parameters = aruco.DetectorParameters()
+
+# 위치 레이블 함수
+def get_position_label(x, y):
+    if y < h1:
+        vertical = "위"
+    elif y < h2:
+        vertical = "가운데"
+    else:
+        vertical = "아래"
+
+    if x < w1:
+        horizontal = "왼쪽"
+    elif x < w2:
+        horizontal = "가운데"
+    else:
+        horizontal = "오른쪽"
+
+    return f"{vertical}-{horizontal}"
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # YOLO 추론
+    results = model.predict(frame, imgsz=640, conf=0.5, verbose=False)
+    annotated_frame = results[0].plot()
+
+    # YOLO 박스 처리
+    for box in results[0].boxes:
+        cls_id = int(box.cls[0])
+        class_name = class_names[cls_id]
+        x1, y1, x2, y2 = box.xyxy[0]
+        center_x = int((x1 + x2) / 2)
+        center_y = int((y1 + y2) / 2)
+
+        label = get_position_label(center_x, center_y)
+        print(f"🔥 {class_name}: {label}")
+
+        # 시각화
+        cv2.circle(annotated_frame, (center_x, center_y), 5, (0, 0, 255), -1)
+        cv2.putText(annotated_frame, f"{class_name}: {label}", (center_x, center_y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+    # ArUco 마커 탐지
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    detector = aruco.ArucoDetector(aruco_dict, parameters)
+    corners, ids, _ = detector.detectMarkers(gray)
+
+    if ids is not None:
+        for i, corner in enumerate(corners):
+            # 마커 중심 계산
+            corner_points = corner[0]
+            cx = int(corner_points[:, 0].mean())
+            cy = int(corner_points[:, 1].mean())
+
+            label = get_position_label(cx, cy)
+            print(f"🛬 ArUco ID {ids[i][0]}: {label}")
+
+            # 마커 시각화
+            cv2.polylines(annotated_frame, [corner_points.astype(int)], True, (0, 255, 0), 2)
+            cv2.circle(annotated_frame, (cx, cy), 5, (0, 255, 0), -1)
+            cv2.putText(annotated_frame, f"ID:{ids[i][0]} {label}", (cx, cy - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+    # 결과 표시
+    cv2.imshow("YOLO + ArUco Detection", annotated_frame)
+
+    if cv2.waitKey(1) & 0xFF == 27:
+        break
+
+cap.release()
+cv2.destroyAllWindows()
