@@ -1,6 +1,7 @@
 import cv2
 
 def gstreamer_pipeline(
+    sensor_id=0,
     capture_width=1920,
     capture_height=1080,
     display_width=960,
@@ -8,9 +9,9 @@ def gstreamer_pipeline(
     framerate=30,
     flip_method=0,
 ):
-    """CSI 카메라를 위한 GStreamer 파이프라인을 생성합니다."""
+    """CSI 카메라(IMX477)를 위한 GStreamer 파이프라인을 생성합니다."""
     return (
-        "nvarguscamerasrc ! "
+        "nvarguscamerasrc sensor-id=%d ! "
         "video/x-raw(memory:NVMM), "
         "width=(int)%d, height=(int)%d, "
         "format=(string)NV12, framerate=(fraction)%d/1 ! "
@@ -19,6 +20,7 @@ def gstreamer_pipeline(
         "videoconvert ! "
         "video/x-raw, format=(string)BGR ! appsink"
         % (
+            sensor_id,
             capture_width,
             capture_height,
             framerate,
@@ -29,33 +31,31 @@ def gstreamer_pipeline(
     )
 
 def main():
-    # GStreamer 파이프라인을 사용하여 VideoCapture 객체를 생성합니다.
-    # Jetson Orin Nano의 CSI0 포트에 연결된 카메라를 사용합니다.
-    pipeline = gstreamer_pipeline()
+    # CAM0에 연결된 IMX477 카메라를 열기 위해 sensor_id=0으로 파이프라인 생성
+    pipeline = gstreamer_pipeline(sensor_id=0)
     cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
 
     if not cap.isOpened():
-        print("CSI 카메라를 열 수 없습니다.")
+        print("에러: 카메라를 열 수 없습니다. (CAM0, IMX477)")
+        print("연결 상태와 Jetson 보드 설정을 확인하세요.")
         return
 
-    print("CSI 카메라가 성공적으로 열렸습니다. ESC 키를 눌러 종료하세요.")
+    print("카메라가 성공적으로 열렸습니다. ESC 키를 누르면 종료됩니다.")
 
-    while True:
+    window_handle = cv2.namedWindow("IMX477 Camera", cv2.WINDOW_AUTOSIZE)
+    while cv2.getWindowProperty("IMX477 Camera", 0) >= 0:
         ret, frame = cap.read()
-
         if not ret:
-            print("프레임을 읽을 수 없습니다.")
+            print("프레임을 읽는 데 실패했습니다.")
             break
 
-        # 프레임을 화면에 표시합니다.
-        cv2.imshow("CSI Camera", frame)
+        cv2.imshow("IMX477 Camera", frame)
 
-        # 'ESC' 키를 누르면 루프를 종료합니다.
+        # 'ESC' 키(ASCII 27)를 누르면 종료
         key = cv2.waitKey(1)
         if key == 27:
             break
 
-    # 자원을 해제합니다.
     cap.release()
     cv2.destroyAllWindows()
 
