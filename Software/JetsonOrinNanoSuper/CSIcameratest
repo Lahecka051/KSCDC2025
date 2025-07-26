@@ -1,0 +1,63 @@
+import cv2
+
+def gstreamer_pipeline(
+    capture_width=1920,
+    capture_height=1080,
+    display_width=960,
+    display_height=540,
+    framerate=30,
+    flip_method=0,
+):
+    """CSI 카메라를 위한 GStreamer 파이프라인을 생성합니다."""
+    return (
+        "nvarguscamerasrc ! "
+        "video/x-raw(memory:NVMM), "
+        "width=(int)%d, height=(int)%d, "
+        "format=(string)NV12, framerate=(fraction)%d/1 ! "
+        "nvvidconv flip-method=%d ! "
+        "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+        "videoconvert ! "
+        "video/x-raw, format=(string)BGR ! appsink"
+        % (
+            capture_width,
+            capture_height,
+            framerate,
+            flip_method,
+            display_width,
+            display_height,
+        )
+    )
+
+def main():
+    # GStreamer 파이프라인을 사용하여 VideoCapture 객체를 생성합니다.
+    # Jetson Orin Nano의 CSI0 포트에 연결된 카메라를 사용합니다.
+    pipeline = gstreamer_pipeline()
+    cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+
+    if not cap.isOpened():
+        print("CSI 카메라를 열 수 없습니다.")
+        return
+
+    print("CSI 카메라가 성공적으로 열렸습니다. ESC 키를 눌러 종료하세요.")
+
+    while True:
+        ret, frame = cap.read()
+
+        if not ret:
+            print("프레임을 읽을 수 없습니다.")
+            break
+
+        # 프레임을 화면에 표시합니다.
+        cv2.imshow("CSI Camera", frame)
+
+        # 'ESC' 키를 누르면 루프를 종료합니다.
+        key = cv2.waitKey(1)
+        if key == 27:
+            break
+
+    # 자원을 해제합니다.
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
