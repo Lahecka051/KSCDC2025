@@ -100,6 +100,15 @@ class Object_Data:
         self.cap.release()
         cv2.destroyAllWindows()
 
+def detect_once(self, frame):
+    results = self.model.predict(frame, imgsz=1280, conf=0.4, verbose=False)
+    self.debug_frame = results[0].plot()
+
+    for box in results[0].boxes:
+        cls_id = int(box.cls[0])
+        if self.class_names[cls_id] == "fire":  # fire로 학습된 경우
+            return True
+    return False
 
 cap = cv2.VideoCapture(
     "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
