@@ -1,24 +1,19 @@
-  Setting pipeline to PAUSED ...
+Setting pipeline to PAUSED ...
 Pipeline is live and does not need PREROLL ...
-0:00:00.191385298  3823 0xaaab13fc65e0 FIXME                default gstutils.c:4025:gst_pad_create_stream_id_internal:<nvarguscamerasrc0:src> Creating random stream-id, consider implementing a deterministic way of creating a stream-id
 Pipeline is PREROLLED ...
 Setting pipeline to PLAYING ...
 New clock: GstSystemClock
 Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, execute:794 No cameras available
 Redistribute latency...
-0:00:00.213488950  3823 0xaaab13fb0590 WARN                basesink gstbasesink.c:1249:gst_base_sink_query_latency:<autovideosink0-actual-sink-xvimage> warning: Pipeline construction is invalid, please add queues.
-0:00:00.213489110  3823 0xaaab13fc6a40 WARN                basesink gstbasesink.c:1249:gst_base_sink_query_latency:<autovideosink0-actual-sink-xvimage> warning: Pipeline construction is invalid, please add queues.
-0:00:00.213514122  3823 0xaaab13fb0590 WARN                basesink gstbasesink.c:1249:gst_base_sink_query_latency:<autovideosink0-actual-sink-xvimage> warning: Not enough buffering available for  the processing deadline of 0:00:00.015000000, add enough queues to buffer  0:00:00.015000000 additional data. Shortening processing latency to 0:00:00.000000000.
-0:00:00.213539839  3823 0xaaab13fc6a40 WARN                basesink gstbasesink.c:1249:gst_base_sink_query_latency:<autovideosink0-actual-sink-xvimage> warning: Not enough buffering available for  the processing deadline of 0:00:00.015000000, add enough queues to buffer  0:00:00.015000000 additional data. Shortening processing latency to 0:00:00.000000000.
-WARNING: from element /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage: Pipeline construction is invalid, please add queues.
+WARNING: from element /GstPipeline:pipeline0/GstV4l2Sink:v4l2sink0: Pipeline construction is invalid, please add queues.
 Additional debug info:
-../libs/gst/base/gstbasesink.c(1249): gst_base_sink_query_latency (): /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage:
+../libs/gst/base/gstbasesink.c(1249): gst_base_sink_query_latency (): /GstPipeline:pipeline0/GstV4l2Sink:v4l2sink0:
 Not enough buffering available for  the processing deadline of 0:00:00.015000000, add enough queues to buffer  0:00:00.015000000 additional data. Shortening processing latency to 0:00:00.000000000.
-WARNING: from element /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage: Pipeline construction is invalid, please add queues.
+WARNING: from element /GstPipeline:pipeline0/GstV4l2Sink:v4l2sink0: Pipeline construction is invalid, please add queues.
 Additional debug info:
-../libs/gst/base/gstbasesink.c(1249): gst_base_sink_query_latency (): /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage:
+../libs/gst/base/gstbasesink.c(1249): gst_base_sink_query_latency (): /GstPipeline:pipeline0/GstV4l2Sink:v4l2sink0:
 Not enough buffering available for  the processing deadline of 0:00:00.015000000, add enough queues to buffer  0:00:00.015000000 additional data. Shortening processing latency to 0:00:00.000000000.
 Got EOS from element "pipeline0".
-Execution ended after 0:00:00.022631922
+Execution ended after 0:00:00.015982446
 Setting pipeline to NULL ...
 Freeing pipeline ...
