@@ -1,19 +1,90 @@
-Setting pipeline to PAUSED ...
-Pipeline is live and does not need PREROLL ...
-Pipeline is PREROLLED ...
-Setting pipeline to PLAYING ...
-New clock: GstSystemClock
-Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, execute:794 No cameras available
-Redistribute latency...
-WARNING: from element /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage: Pipeline construction is invalid, please add queues.
-Additional debug info:
-../libs/gst/base/gstbasesink.c(1249): gst_base_sink_query_latency (): /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage:
-Not enough buffering available for  the processing deadline of 0:00:00.015000000, add enough queues to buffer  0:00:00.015000000 additional data. Shortening processing latency to 0:00:00.000000000.
-WARNING: from element /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage: Pipeline construction is invalid, please add queues.
-Additional debug info:
-../libs/gst/base/gstbasesink.c(1249): gst_base_sink_query_latency (): /GstPipeline:pipeline0/GstAutoVideoSink:autovideosink0/GstXvImageSink:autovideosink0-actual-sink-xvimage:
-Not enough buffering available for  the processing deadline of 0:00:00.015000000, add enough queues to buffer  0:00:00.015000000 additional data. Shortening processing latency to 0:00:00.000000000.
-Got EOS from element "pipeline0".
-Execution ended after 0:00:00.016013959
-Setting pipeline to NULL ...
-Freeing pipeline ...
+[    0.000000] esrt: Reserving ESRT space from 0x00000002660e0518 to 0x00000002660e0550.
+[    0.000000] Kernel command line: root=PARTUUID=2965f20d-3963-4840-8914-0bc835671289 rw rootwait rootfstype=ext4 mminit_loglevel=4 console=ttyTCU0,115200 firmware_class.path=/etc/firmware fbcon=map:0 video=efifb:off console=tty0 nv-auto-config bl_prof_dataptr=2031616@0x271E10000 bl_prof_ro_ptr=65536@0x271E00000 
+[    0.000375] Console: colour dummy device 80x25
+[    0.003936] Tegra Revision: A01 SKU: 213 CPU Process: 0 SoC Process: 0
+[    0.004201] Remapping and enabling EFI services.
+[    0.009558] CPU features: detected: Privileged Access Never
+[    0.088137] usbcore: registered new device driver usb
+[    0.089987] Bluetooth: HCI device and connection manager initialized
+[    0.191911] tun: Universal TUN/TAP device driver, 1.6
+[    0.202013] device-mapper: ioctl: 4.45.0-ioctl (2021-03-22) initialised: dm-devel@redhat.com
+[    0.206159] ledtrig-cpu: registered to indicate activity on CPUs
+[    0.207201] SMCCC: SOC_ID: ID = jep106:036b:0234 Revision = 0x00000401
+[    3.519091] optee: revision 4.2 (d78bc5fa)
+[    3.663001] Console: switching to colour frame buffer device 320x100
+[    3.729873] input: gpio-keys as /devices/platform/gpio-keys/input/input0
+[    3.763505] ALSA device list:
+[    3.811434]   with environment:
+[    3.840722] Root device found: PARTUUID=2965f20d-3963-4840-8914-0bc835671289
+[    4.062281] usb 1-2: new high-speed USB device number 2 using tegra-xusb
+[    4.355272] usb 2-1: new SuperSpeed Plus Gen 2x1 USB device number 2 using tegra-xusb
+[    4.518276] usb 1-3: new full-speed USB device number 3 using tegra-xusb
+[    4.958280] usb 1-2.1: new low-speed USB device number 4 using tegra-xusb
+[    5.076998] input: USB Wired Keyboard as /devices/platform/bus@0/3610000.usb/usb1/1-2/1-2.1/1-2.1:1.0/0003:1C4F:0049.0001/input/input1
+[    5.138951] input: USB Wired Keyboard System Control as /devices/platform/bus@0/3610000.usb/usb1/1-2/1-2.1/1-2.1:1.1/0003:1C4F:0049.0002/input/input2
+[    5.198931] input: USB Wired Keyboard Consumer Control as /devices/platform/bus@0/3610000.usb/usb1/1-2/1-2.1/1-2.1:1.1/0003:1C4F:0049.0002/input/input3
+[    5.199869] hid-generic 0003:1C4F:0049.0002: input,hidraw1: USB HID v1.10 Device [USB Wired Keyboard] on usb-3610000.usb-2.1/input1
+[    5.282288] usb 1-2.2: new low-speed USB device number 5 using tegra-xusb
+[    5.397932] input: PixArt USB Optical Mouse as /devices/platform/bus@0/3610000.usb/usb1/1-2/1-2.2/1-2.2:1.0/0003:093A:2510.0003/input/input4
+[    8.122605] nvme 0004:01:00.0: enabling device (0000 -> 0002)
+[    8.381730] systemd[1]: Using hardware watchdog 'NVIDIA Tegra186 WDT', version 0, device /dev/watchdog
+[    8.540378] systemd[1]: /lib/systemd/system/snapd.service:23: Unknown key name 'RestartMode' in section 'Service', ignoring.
+[    8.551262] systemd[1]: /etc/systemd/system/nvs-service.service:41: Standard output type syslog is obsolete, automatically updating to journal. Please update your unit file, and consider removing the setting altogether.
+[    8.554616] systemd[1]: /etc/systemd/system/nvargus-daemon.service:42: Standard output type syslog is obsolete, automatically updating to journal. Please update your unit file, and consider removing the setting altogether.
+[    8.636101] systemd[1]: Listening on Device-mapper event daemon FIFOs.
+[    8.692539] systemd[1]: Starting Journal Service...
+[    8.694321] systemd[1]: Finished Availability of block devices.
+[    8.703239] systemd[1]: Starting Create List of Static Device Nodes...
+[    8.749795] systemd[1]: Condition check resulted in File System Check on Root Device being skipped.
+[    8.764809] videodev: Linux video capture interface: v2.00
+[    8.842821] systemd[1]: Starting Coldplug All udev Devices...
+[    8.894354] systemd[1]: Started Journal Service.
+[    9.182705] scare-pigeon 13e00000.host1x:vi0-thi@15f00000: Adding to iommu group 25
+[    9.183421] scare-pigeon 13e00000.host1x:vi0-thi@15f00000: syncpt_unit_base 60000000 syncpt_unit_size 4000000 size 10000
+[    9.183523] scare-pigeon 13e00000.host1x:vi1-thi@14f00000: Adding to iommu group 26
+[    9.187862] scare-pigeon 13e00000.host1x:vi1-thi@14f00000: syncpt_unit_base 60000000 syncpt_unit_size 4000000 size 10000
+[    9.295640] tegra-vic 15340000.vic: Adding to iommu group 29
+[    9.743278] tegra194-vi5 13e00000.host1x:vi0@15c00000: Adding to iommu group 25
+[    9.743329] driver not enabled, cannot register any devices
+[    9.744709] driver not enabled, cannot register any devices
+[    9.747918] tegra194-vi5 13e00000.host1x:vi1@14c00000: Adding to iommu group 26
+[    9.750758] (NULL device *): fops function table already registered
+[    9.752360] driver not enabled, cannot register any devices
+[    9.765033] driver not enabled, cannot register any devices
+[    9.777167] dce: tegra_dce_probe:245  Found display consumer device
+[    9.895051] rtl88x2ce 0001:01:00.0: enabling device (0000 -> 0003)
+[    9.979579] input: NVIDIA Jetson Orin Nano HDA HDMI/DP,pcm=3 as /devices/platform/bus@0/3510000.hda/sound/card0/input5
+[   10.002052] input: NVIDIA Jetson Orin Nano HDA HDMI/DP,pcm=7 as /devices/platform/bus@0/3510000.hda/sound/card0/input6
+[   10.021468] input: NVIDIA Jetson Orin Nano HDA HDMI/DP,pcm=8 as /devices/platform/bus@0/3510000.hda/sound/card0/input7
+[   10.025495] input: NVIDIA Jetson Orin Nano HDA HDMI/DP,pcm=9 as /devices/platform/bus@0/3510000.hda/sound/card0/input8
+[   10.039402] CAN device driver interface
+[   10.078323] thermal-trip-event cpu-throttle-alert: cooling device registered.
+[   10.085251] thermal-trip-event gpu-throttle-alert: cooling device registered.
+[   10.085526] thermal-trip-event cv0-throttle-alert: cooling device registered.
+[   10.085544] net can0: mttcan device registered (regs=00000000a575f939, irq=201)
+[   10.085711] thermal-trip-event cv1-throttle-alert: cooling device registered.
+[   10.085785] fusb301 1-0025: device id: 0x12
+[   10.085871] thermal-trip-event cv2-throttle-alert: cooling device registered.
+[   10.087521] thermal-trip-event soc0-throttle-alert: cooling device registered.
+[   10.103522] thermal-trip-event soc1-throttle-alert: cooling device registered.
+[   10.115094] thermal-trip-event soc2-throttle-alert: cooling device registered.
+[   10.129991] thermal-trip-event hot-surface-alert: cooling device registered.
+[   10.454904] pci 0007:00:00.0: Removing from iommu group 7
+[   10.767554] r8168 0008:01:00.0: enabling device (0000 -> 0003)
+[   13.351857] bridge: filtering via arp/ip/ip6tables is no longer available by default. Update your scripts to load br_netfilter if you need this.
+[   13.439314] device usb0 entered promiscuous mode
+[   13.755619] zram: Added device: zram0
+[   13.756267] zram: Added device: zram1
+[   13.757661] zram: Added device: zram2
+[   13.757883] zram: Added device: zram3
+[   13.758038] zram: Added device: zram4
+[   13.758182] zram: Added device: zram5
+[   13.818760] device usb1 entered promiscuous mode
+[   16.220236] nvidia-modeset: Loading NVIDIA UNIX Open Kernel Mode Setting Driver for aarch64  540.4.0  Release Build  (buildbrain@mobile-u64-6262-d8000)  Mon Jun 16 08:47:15 PDT 2025
+[   16.226842] [drm] [nvidia-drm] [GPU ID 0x00020000] Loading driver
+[   16.796845] [drm] Initialized nvidia-drm 0.0.0 20160202 for 13800000.display on minor 1
+[   16.796972] fb0: switching to nvidia-drm from simple
+[   16.797638] Console: switching to colour dummy device 80x25
+[   16.950067] Console: switching to colour frame buffer device 320x100
+[   16.950099] nv_platform 13800000.display: [drm] fb0: nvidia-drmdrmfb frame buffer device
+[   20.190518] [drm:nv_drm_atomic_commit [nvidia_drm]] *ERROR* [nvidia-drm] [GPU ID 0x00020000] Flip event timeout on head 0
