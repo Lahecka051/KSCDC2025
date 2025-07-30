@@ -107,5 +107,14 @@ class Landing:
         self.cap.release()
         cv2.destroyAllWindows()
 
+    def process_frame(self, frame):
+        self.frame = frame
+        self.ff_process()
+        self.tem_match()
+    
+        self.debug_frame = self.frame.copy()
+    
+        return self.marker_center is not None  # 마커 탐지 여부 반환
+
 landing = Landing()
 landing.run()
