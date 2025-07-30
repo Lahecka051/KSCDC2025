@@ -59,10 +59,10 @@
 - [프레임 구매 링크](https://ko.aliexpress.com/item/1005008274592701.html?spm=a2g0o.order_list.order_list_main.137.f19d140fXWRv7X&gatewayAdapt=glo2kor)
 
 ### 부품 공식 제원 상 무게
-jetson orin nano super : Dimensions = 100mm x 79mm x 21mm, Weight = 176g, Power = 5V_Input(5W ~ 25W)
-Camera : 3g x 2 = 6g
-Flight Controller Spec : Mounting = 30.5mm x 30.5mm x 4mm, Dimensions = 36mm x 36mm x 8mm, Weight = 10g
-14.8V 8400mah 130C 리포 하드케이스 크기: 138*47*49mm 무게 639g.
+- jetson orin nano super : Dimensions = 100mm x 79mm x 21mm, Weight = 176g, Power = 5V_Input(5W ~ 25W)
+- Camera : 3g x 2 = 6g
+- Flight Controller Spec : Mounting = 30.5mm x 30.5mm x 4mm, Dimensions = 36mm x 36mm x 8mm, Weight = 10g
+- 14.8V 8400mah 130C 리포 하드케이스 크기: 138*47*49mm 무게 639g.
 
 
 ## 앞으로 진행할 내용
