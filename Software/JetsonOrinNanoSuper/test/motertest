@@ -1,30 +1,46 @@
 import time
 from pymavlink import mavutil
 
-# 젯슨의 시리얼 포트(/dev/ttyTHS1)로 연결
-master = mavutil.mavlink_connection('/dev/ttyTHS1', baud=921600)
+# --- FC에 연결 ---
+# 젯슨 오린 나노의 UART 포트는 보통 /dev/ttyTHS* 형태입니다. (ls /dev/ttyTHS* 명령어로 확인)
+# SERIAL4_BAUD에서 설정한 값과 동일한 통신 속도를 사용합니다.
+master = mavutil.mavlink_connection('/dev/ttyTHS0', baud=921600)
 
-# 연결 확인
-print("Waiting for heartbeat...")
+# FC의 Heartbeat를 기다려서 연결을 확인합니다.
 master.wait_heartbeat()
-print("Heartbeat from system (system %u component %u)" % (master.target_system, master.target_component))
+print("FC Heartbeat 수신 완료!")
 
-# --- 모터 1번 테스트 ---
-print("Testing motor 1 for 3 seconds...")
+# --- 모터 테스트 명령 파라미터 ---
+motor_number = 1       # 테스트할 모터 번호 (1 = 모터1)
+throttle_percent = 10  # 스로틀 % (5~15% 권장)
+timeout_sec = 5        # 테스트 지속 시간 (초)
+throttle_type = 0      # 0 = % 단위, 1 = PWM 단위
+
+# --- MAVLink 명령 전송 ---
+# MAV_CMD_DO_MOTOR_TEST 명령을 사용합니다.
 master.mav.command_long_send(
-    master.target_system,
-    master.target_component,
-    mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST,
-    0,  # confirmation
-    1,  # Motor number (0=1, 1=2, ...) / ArduPilot에서는 1부터 시작
-    mavutil.mavlink.MOTOR_TEST_THROTTLE_PERCENT, # Throttle type
-    10, # Throttle value (5~10% 정도로 낮게 시작)
-    3,  # Timeout (seconds)
-    0,  # Motor count (0 for all)
-    mavutil.mavlink.MOTOR_TEST_ORDER_BOARD, # Test order
-    0)
+    master.target_system,    # target_system
+    master.target_component, # target_component
+    mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST, # command
+    0, # confirmation
+    motor_number,     # param1: motor sequence number (1-4)
+    throttle_type,    # param2: throttle type (0=percent, 1=PWM)
+    throttle_percent, # param3: throttle
+    timeout_sec,      # param4: timeout (sec)
+    0,                # param5: motor count (not used)
+    0,                # param6: not used
+    0)                # param7: not used
 
-# 테스트가 끝날 때까지 대기
-time.sleep(4)
+print(f"{motor_number}번 모터를 {throttle_percent}% 출력으로 {timeout_sec}초 동안 테스트합니다.")
 
-print("Motor test finished.")
+# 명령 수신 확인 (선택 사항)
+while True:
+    msg = master.recv_match(type='COMMAND_ACK', blocking=True)
+    if msg.command == mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST:
+        print(f"명령 수신 확인: {msg}")
+        if msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
+            print("모터 테스트 명령이 수락되었습니다.")
+        else:
+            print("모터 테스트 명령이 거부되었습니다.")
+        break
+    time.sleep(0.1)
