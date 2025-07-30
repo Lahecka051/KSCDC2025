@@ -1,0 +1,66 @@
+import time
+from pymavlink import mavutil
+
+# --- 연결 설정 ---
+# 젯슨 오린 나노의 하드웨어 UART는 보통 /dev/ttyTHS0 입니다.
+# Mission Planner에서 설정한 Baudrate와 동일하게 맞춥니다.
+master = mavutil.mavlink_connection('/dev/ttyTHS0', baud=921600)
+
+# FC로부터 Heartbeat 신호가 올 때까지 대기 (연결 확인)
+print("Waiting for heartbeat...")
+master.wait_heartbeat()
+print("Heartbeat from system (system %u component %u)" % (master.target_system, master.target_component))
+
+
+# --- 모터 아밍(Arming) ---
+# 아밍은 모터를 회전시킬 수 있는 준비 상태로 만드는 것입니다.
+print("Arming motors")
+master.mav.command_long_send(
+    master.target_system,
+    master.target_component,
+    mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+    0,  # confirmation
+    1,  # 1: arm, 0: disarm
+    0, 0, 0, 0, 0, 0)
+
+# 아밍 명령이 처리될 때까지 잠시 대기
+time.sleep(2)
+print("Motors armed")
+
+
+# --- 모터 테스트 (스로틀 제어) ---
+# RC 채널 값을 직접 덮어쓰는 방식으로 모터를 제어합니다.
+# 채널 3번이 보통 스로틀입니다. 값의 범위는 1000~2000 입니다.
+# 1100은 아주 낮은 스로틀 값입니다.
+print("Sending throttle command for 3 seconds")
+for _ in range(30):
+    master.mav.rc_channels_override_send(
+        master.target_system,
+        master.target_component,
+        0,    # Channel 1 (Roll) - 1500은 중립
+        0,    # Channel 2 (Pitch) - 1500은 중립
+        1100, # Channel 3 (Throttle) - 최저(1000)보다 약간 높게
+        0,    # Channel 4 (Yaw) - 1500은 중립
+        0, 0, 0, 0)
+    time.sleep(0.1)
+
+# RC Override 초기화
+master.mav.rc_channels_override_send(
+    master.target_system,
+    master.target_component,
+    0, 0, 0, 0, 0, 0, 0, 0)
+print("Throttle command finished")
+time.sleep(1)
+
+
+# --- 모터 해제(Disarm) ---
+# 안전을 위해 항상 작업이 끝나면 Disarm 합니다.
+print("Disarming motors")
+master.mav.command_long_send(
+    master.target_system,
+    master.target_component,
+    mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+    0,  # confirmation
+    0,  # 1: arm, 0: disarm
+    0, 0, 0, 0, 0, 0)
+print("Motors disarmed")
