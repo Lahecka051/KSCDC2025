@@ -46,7 +46,7 @@ if __name__ == "__main__":
     # 1번부터 4번 모터까지 순서대로 테스트
     for i in range(1, 5):
         # 5% 출력으로 2초간 테스트
-        run_motor_test(motor_number=i, throttle_percent=5, duration_sec=2)
+        run_motor_test(motor_number=i, throttle_percent=20, duration_sec=10)
 
         # 다음 모터 테스트 전 3초간 대기
         time.sleep(3)
