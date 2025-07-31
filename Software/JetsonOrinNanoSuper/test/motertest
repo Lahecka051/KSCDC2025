@@ -1,46 +1,54 @@
 import time
 from pymavlink import mavutil
 
-# --- FC에 연결 ---
-# 젯슨 오린 나노의 UART 포트는 보통 /dev/ttyTHS* 형태입니다. (ls /dev/ttyTHS* 명령어로 확인)
-# SERIAL4_BAUD에서 설정한 값과 동일한 통신 속도를 사용합니다.
+# 젯슨 오린 나노의 UART 포트에 연결
 master = mavutil.mavlink_connection('/dev/ttyTHS0', baud=921600)
 
-# FC의 Heartbeat를 기다려서 연결을 확인합니다.
+# 연결 확인
 master.wait_heartbeat()
-print("FC Heartbeat 수신 완료!")
+print("FC와 연결되었습니다 (Heartbeat: %u, System: %u)" % (master.target_system, master.target_component))
 
-# --- 모터 테스트 명령 파라미터 ---
-motor_number = 1       # 테스트할 모터 번호 (1 = 모터1)
-throttle_percent = 10  # 스로틀 % (5~15% 권장)
-timeout_sec = 5        # 테스트 지속 시간 (초)
-throttle_type = 0      # 0 = % 단위, 1 = PWM 단위
+def run_motor_test(motor_number, throttle_percent, duration_sec):
+    """
+    지정된 모터를 특정 출력으로 주어진 시간 동안 테스트합니다.
 
-# --- MAVLink 명령 전송 ---
-# MAV_CMD_DO_MOTOR_TEST 명령을 사용합니다.
-master.mav.command_long_send(
-    master.target_system,    # target_system
-    master.target_component, # target_component
-    mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST, # command
-    0, # confirmation
-    motor_number,     # param1: motor sequence number (1-4)
-    throttle_type,    # param2: throttle type (0=percent, 1=PWM)
-    throttle_percent, # param3: throttle
-    timeout_sec,      # param4: timeout (sec)
-    0,                # param5: motor count (not used)
-    0,                # param6: not used
-    0)                # param7: not used
+    Args:
+        motor_number (int): 테스트할 모터 번호 (1부터 시작)
+        throttle_percent (int): 스로틀 출력 (%, 5-10% 정도가 안전)
+        duration_sec (int): 테스트 지속 시간 (초)
+    """
+    print(f"테스트 시작: 모터 #{motor_number}, 출력: {throttle_percent}%, 시간: {duration_sec}초")
+    master.mav.command_long_send(
+        master.target_system,
+        master.target_component,
+        mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST,
+        0, # 확인 메시지
+        motor_number,       # param 1: 모터 순서 (1-4)
+        mavutil.mavlink.MOTOR_TEST_THROTTLE_PERCENT, # param 2: 스로틀 타입
+        throttle_percent,   # param 3: 스로틀 값
+        duration_sec,       # param 4: 테스트 시간 (초)
+        0,                  # param 5: 사용 안 함
+        0,                  # param 6: 사용 안 함
+        0)                  # param 7: 사용 안 함
 
-print(f"{motor_number}번 모터를 {throttle_percent}% 출력으로 {timeout_sec}초 동안 테스트합니다.")
+    # FC가 명령을 수락했는지 확인
+    ack = master.recv_match(type='COMMAND_ACK', blocking=True, timeout=duration_sec + 1)
+    if ack and ack.command == mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST and ack.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
+        print(f"모터 #{motor_number} 테스트 명령 수락됨.")
+    else:
+        print(f"모터 #{motor_number} 테스트 명령 실패 또는 타임아웃. ACK: {ack}")
 
-# 명령 수신 확인 (선택 사항)
-while True:
-    msg = master.recv_match(type='COMMAND_ACK', blocking=True)
-    if msg.command == mavutil.mavlink.MAV_CMD_DO_MOTOR_TEST:
-        print(f"명령 수신 확인: {msg}")
-        if msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
-            print("모터 테스트 명령이 수락되었습니다.")
-        else:
-            print("모터 테스트 명령이 거부되었습니다.")
-        break
-    time.sleep(0.1)
+
+# --- 메인 실행 ---
+if __name__ == "__main__":
+    # 🚨 프로펠러가 제거되었는지 반드시 확인하세요!
+
+    # 1번부터 4번 모터까지 순서대로 테스트
+    for i in range(1, 5):
+        # 5% 출력으로 2초간 테스트
+        run_motor_test(motor_number=i, throttle_percent=5, duration_sec=2)
+
+        # 다음 모터 테스트 전 3초간 대기
+        time.sleep(3)
+
+    print("모든 모터 테스트 완료.")
