@@ -3,19 +3,19 @@
 - 메인 페이지의 정리된 회의 내용은 회의 종료 후 2일 이내 업데이트 됩니다.
 - 자세한 사항은 당일 회의록을 참고하시기 바랍니다.
 
-# Paste_Data : 07.11(금) (latest update) 
+# Paste_Data : 08.01(금) (latest update) 
 
 ### 정기 회의일
-- 매주 (수,목)요일 14:00 ~ 21:00
+- 매주 (수,목)요일 14:00 ~ 20:00
 
 ## 논의 내용
 - 하드웨어 & 소프트웨어 제작
 
 ## 진행 상황
 ### 소프트웨어
-- YOLOv8s의 화재 탐지모델 데이터셋 구글 코랩을 이용하여 학습
-- FC의 데이터를 텔레메트리를 이용하여 실시간 모니터링 가능한 환경 구축
-- FC의 accypr & gps data를 이용한 드론 방향제어 로직 생성
+- 젯슨 CSI 카메라 객체인식 테스트 by YOLOv8s
+- FC의 데이터를 텔레메트리를 이용하여 실시간 모니터링 가능한 지상국 구축
+- FC의 모터 PWM 신호 애널라이징 후 신호 복제하여 무선 모터 조종 테스트
 
 ### 기계공학적인 차별점이 필요
 - 드론 하단부 소화탄 발사기 ( 소화탄 다연장 회전식 매커니즘 ) 탈부착
@@ -34,8 +34,8 @@
 - [FC 구매 링크](https://ko.aliexpress.com/item/1005008824819033.html?spm=a2g0o.order_list.order_list_main.119.f19d140fXWRv7X&gatewayAdapt=glo2kor)
 
 #### 카메라
-- 정면 : IMX219 160 degree
-- 바닥 : IMX219 120 degree
+- 정면 : IMX477 6mm 63 degree
+- 바닥 : IMX219 160 degree
 
 #### 배터리 
 - LiPo 4S(14.8V) 8,400mAh 130C X2 
@@ -48,9 +48,9 @@
 - [개발보드 공식 링크](https://www.nvidia.com/ko-kr/autonomous-machines/embedded-systems/jetson-orin/nano-super-developer-kit/)
 
 ### 소프트웨어
-- UBUNTU_GUI 24.2 & Debian_Linux 12
+- UBUNTU_GUI 20.04 (Jetpack5.1.5)
 - ROS BASED Ardupilot
-- TENSORFLOW BASED OPENCV
+- USED OPENCV CUDA TensorRT
 - MODEL : YOLOv8s
 
 ## 프레임
@@ -60,10 +60,10 @@
 
 ### 부품 공식 제원 상 무게
 - jetson orin nano super : Dimensions = 100mm x 79mm x 21mm, Weight = 176g, Power = 5V_Input(5W ~ 25W)
-- Camera : 3g x 2 = 6g
+- Camera : 수정
 - Flight Controller Spec : Mounting = 30.5mm x 30.5mm x 4mm, Dimensions = 36mm x 36mm x 8mm, Weight = 10g
 - 14.8V 8400mah 130C 리포 하드케이스 크기: 138 x 47 x 49mm 무게 639g.
 
 
 ## 앞으로 진행할 내용
-- 소프트웨어 데이터셋 작업 진행
+- 젯슨 객체인식 소프트웨어 & 지상국 소프트웨어 구체화
