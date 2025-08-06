@@ -2,3 +2,17 @@ sudo systemctl stop nvgetty
 sudo systemctl disable nvgetty
 sudo udevadm trigger
 sudo reboot
+
+
+
+sudo apt-get install python3-serial
+
+
+import serial
+ser = serial.Serial('/dev/ttyTHS0', 115200, timeout=1)
+ser.write(b'Hello Jetson\n')
+data = ser.readline()
+print(data)
+ser.close()
+
+
