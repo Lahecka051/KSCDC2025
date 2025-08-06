@@ -7,15 +7,6 @@ class Landing:
         self.marker_color = cv2.imread(self.marker_path)
         if self.marker_color is None:
             raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {self.marker_path}")
-        
-        self.cap = cv2.VideoCapture(
-            "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
-            "nvvidconv flip-method=2 ! video/x-raw, width=640, height=480, format=BGRx ! "
-            "videoconvert ! video/x-raw, format=BGR ! appsink",
-            cv2.CAP_GSTREAMER
-        )
-        if not self.cap.isOpened():
-            raise RuntimeError("카메라 열기 실패")
 
         self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
