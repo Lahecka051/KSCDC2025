@@ -1,5 +1,18 @@
-# 예: Python 3.8 기준
-wget https://github.com/Qengineering/Jetson-Orin-Nano/raw/main/OpenCV/OpenCV-4-8-0-python-3-8.tar.gz
+kscdc2025@ubuntu:~$ wget https://github.com/Qengineering/Jetson-Orin-Nano/raw/main/OpenCV/OpenCV-4-8-0-python-3-8.tar.gz
 tar -xzf OpenCV-4-8-0-python-3-8.tar.gz
 cd OpenCV-4-8-0-python-3-8
 pip install opencv_python-4.8.0-cp38-cp38-linux_aarch64.whl
+--2025-08-06 18:25:07--  https://github.com/Qengineering/Jetson-Orin-Nano/raw/main/OpenCV/OpenCV-4-8-0-python-3-8.tar.gz
+Resolving github.com (github.com)... 64:ff9b::14c8:f5f7, 20.200.245.247
+Connecting to github.com (github.com)|64:ff9b::14c8:f5f7|:443... connected.
+HTTP request sent, awaiting response... 404 Not Found
+2025-08-06 18:25:10 ERROR 404: Not Found.
+
+tar (child): OpenCV-4-8-0-python-3-8.tar.gz: Cannot open: No such file or directory
+tar (child): Error is not recoverable: exiting now
+tar: Child returned status 2
+tar: Error is not recoverable: exiting now
+bash: cd: OpenCV-4-8-0-python-3-8: No such file or directory
+Defaulting to user installation because normal site-packages is not writeable
+WARNING: Requirement 'opencv_python-4.8.0-cp38-cp38-linux_aarch64.whl' looks like a filename, but the file does not exist
+ERROR: opencv_python-4.8.0-cp38-cp38-linux_aarch64.whl is not a supported wheel on this platform.
