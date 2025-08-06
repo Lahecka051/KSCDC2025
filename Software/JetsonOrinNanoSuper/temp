@@ -1,0 +1,5 @@
+# 예: Python 3.8 기준
+wget https://github.com/Qengineering/Jetson-Orin-Nano/raw/main/OpenCV/OpenCV-4-8-0-python-3-8.tar.gz
+tar -xzf OpenCV-4-8-0-python-3-8.tar.gz
+cd OpenCV-4-8-0-python-3-8
+pip install opencv_python-4.8.0-cp38-cp38-linux_aarch64.whl
