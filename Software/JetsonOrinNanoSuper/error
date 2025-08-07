@@ -1,47 +1,30 @@
-kscdc2025@ubuntu:~$ python3 check.py
-GST_ARGUS: Creating output stream
-CONSUMER: Waiting until producer is connected...
-GST_ARGUS: Available Sensor modes :
-GST_ARGUS: 3840 x 2160 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+kscdc2025@ubuntu:~/virtual$ sudo python3 check.py
 
-GST_ARGUS: 1920 x 1080 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+A module that was compiled using NumPy 1.x cannot be run in
+NumPy 2.2.6 as it may crash. To support both 1.x and 2.x
+versions of NumPy, modules must be compiled with NumPy 2.0.
+Some module may need to rebuild instead e.g. with 'pybind11>=2.12'.
 
-GST_ARGUS: Running with following settings:
-   Camera index = 0 
-   Camera mode  = 1 
-   Output Stream W = 1920 H = 1080 
-   seconds to Run    = 0 
-   Frame Rate = 59.999999 
-GST_ARGUS: Setup Complete, Starting captures for 0 seconds
-GST_ARGUS: Starting repeat capture requests.
-CONSUMER: Producer has connected; continuing.
-[ WARN:0@1.108] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
-GST_ARGUS: Cleaning up
-CONSUMER: Done Success
-GST_ARGUS: Done Success
-GST_ARGUS: Creating output stream
-CONSUMER: Waiting until producer is connected...
-GST_ARGUS: Available Sensor modes :
-GST_ARGUS: 3840 x 2160 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+If you are a user of the module, the easiest solution will be to
+downgrade to 'numpy<2' or try to upgrade the affected module.
+We expect that some modules will need time to support NumPy 2.
 
-GST_ARGUS: 1920 x 1080 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
-
-GST_ARGUS: Running with following settings:
-   Camera index = 0 
-   Camera mode  = 1 
-   Output Stream W = 1920 H = 1080 
-   seconds to Run    = 0 
-   Frame Rate = 59.999999 
-GST_ARGUS: Setup Complete, Starting captures for 0 seconds
-GST_ARGUS: Starting repeat capture requests.
-CONSUMER: Producer has connected; continuing.
-[ WARN:0@2.045] global cap_gstreamer.cpp:2839 handleMessage OpenCV | GStreamer warning: Embedded video playback halted; module nvarguscamerasrc0 reported: Internal data stream error.
-GST_ARGUS: Cleaning up
-CONSUMER: Done Success
-GST_ARGUS: Done Success
-[ WARN:0@2.116] global cap_gstreamer.cpp:1208 startPipeline OpenCV | GStreamer warning: unable to start pipeline
-[ WARN:0@2.116] global cap_gstreamer.cpp:1971 setProperty OpenCV | GStreamer warning: no pipeline
-[ WARN:0@2.117] global cap_gstreamer.cpp:1859 getProperty OpenCV | GStreamer warning: GStreamer: no pipeline
-[ WARN:0@2.117] global cap_gstreamer.cpp:1859 getProperty OpenCV | GStreamer warning: GStreamer: no pipeline
-프레임을 읽을 수 없습니다.
-[ WARN:0@2.131] global cap_gstreamer.cpp:1173 isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
+Traceback (most recent call last):  File "/home/kscdc2025/virtual/check.py", line 1, in <module>
+    import cv2
+  File "/usr/lib/python3/dist-packages/cv2/__init__.py", line 181, in <module>
+    bootstrap()
+  File "/usr/lib/python3/dist-packages/cv2/__init__.py", line 153, in bootstrap
+    native_module = importlib.import_module("cv2")
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+AttributeError: _ARRAY_API not found
+Traceback (most recent call last):
+  File "/home/kscdc2025/virtual/check.py", line 1, in <module>
+    import cv2
+  File "/usr/lib/python3/dist-packages/cv2/__init__.py", line 181, in <module>
+    bootstrap()
+  File "/usr/lib/python3/dist-packages/cv2/__init__.py", line 153, in bootstrap
+    native_module = importlib.import_module("cv2")
+  File "/usr/lib/python3.10/importlib/__init__.py", line 126, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+ImportError: numpy.core.multiarray failed to import
