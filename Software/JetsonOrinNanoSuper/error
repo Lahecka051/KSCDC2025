@@ -15,13 +15,33 @@ GST_ARGUS: Running with following settings:
 GST_ARGUS: Setup Complete, Starting captures for 0 seconds
 GST_ARGUS: Starting repeat capture requests.
 CONSUMER: Producer has connected; continuing.
-[ WARN:0@1.111] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
-Traceback (most recent call last):
-  File "/home/kscdc2025/check.py", line 189, in <module>
-    landing = Landing(cap)
-  File "/home/kscdc2025/check.py", line 17, in __init__
-    self.parameters = aruco.DetectorParameters_create()
-AttributeError: module 'cv2.aruco' has no attribute 'DetectorParameters_create'. Did you mean: 'DetectorParameters'?
+[ WARN:0@1.108] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
 GST_ARGUS: Cleaning up
 CONSUMER: Done Success
 GST_ARGUS: Done Success
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3840 x 2160 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 0 
+   Camera mode  = 1 
+   Output Stream W = 1920 H = 1080 
+   seconds to Run    = 0 
+   Frame Rate = 59.999999 
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[ WARN:0@2.045] global cap_gstreamer.cpp:2839 handleMessage OpenCV | GStreamer warning: Embedded video playback halted; module nvarguscamerasrc0 reported: Internal data stream error.
+GST_ARGUS: Cleaning up
+CONSUMER: Done Success
+GST_ARGUS: Done Success
+[ WARN:0@2.116] global cap_gstreamer.cpp:1208 startPipeline OpenCV | GStreamer warning: unable to start pipeline
+[ WARN:0@2.116] global cap_gstreamer.cpp:1971 setProperty OpenCV | GStreamer warning: no pipeline
+[ WARN:0@2.117] global cap_gstreamer.cpp:1859 getProperty OpenCV | GStreamer warning: GStreamer: no pipeline
+[ WARN:0@2.117] global cap_gstreamer.cpp:1859 getProperty OpenCV | GStreamer warning: GStreamer: no pipeline
+프레임을 읽을 수 없습니다.
+[ WARN:0@2.131] global cap_gstreamer.cpp:1173 isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
