@@ -1,10 +1,9 @@
 import cv2
 import numpy as np
 import time
-import cv2.aruco as aruco
 
 class Landing:
-    def __init__(self, marker_path = "/Users/GwonHyeokJun/Desktop/Marker.png"):
+    def __init__(self, cap, marker_path = "/home/kscdc2025/Marker.png"):
         self.last_print_time = 0
         self.marker_path = marker_path
         self.marker_color = cv2.imread(self.marker_path)
@@ -13,8 +12,6 @@ class Landing:
 
         self.cap = cap
         self.marker_size = 100
-        self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
-        self.parameters = aruco.DetectorParameters_create()
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
