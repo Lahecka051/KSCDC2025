@@ -11,12 +11,7 @@ class Landing:
         if self.marker_color is None:
             raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {self.marker_path}")
 
-        self.cap = cv2.VideoCapture(
-            "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
-            "nvvidconv flip-method=2 ! video/x-raw, width=640, height=480, format=BGRx ! "
-            "videoconvert ! video/x-raw, format=BGR ! appsink",
-            cv2.CAP_GSTREAMER
-        )
+        self.cap = cap
         self.marker_size = 100
         self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
         self.parameters = aruco.DetectorParameters_create()
@@ -184,5 +179,12 @@ class Landing:
     
         return self.marker_center is not None  # 마커 탐지 여부 반환
 
-landing = Landing()
+cap = cv2.VideoCapture(
+    "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
+    "nvvidconv flip-method=2 ! video/x-raw, width=640, height=480, format=BGRx ! "
+    "videoconvert ! video/x-raw, format=BGR ! appsink",
+    cv2.CAP_GSTREAMER
+)
+
+landing = Landing(cap)
 landing.run()
