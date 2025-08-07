@@ -177,12 +177,25 @@ class Landing:
     
         return self.marker_center is not None  # 마커 탐지 여부 반환
 
-"""cap = cv2.VideoCapture(
-    "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
-    "nvvidconv flip-method=2 ! video/x-raw, width=640, height=480, format=BGRx ! "
-    "videoconvert ! video/x-raw, format=BGR ! appsink",
-    cv2.CAP_GSTREAMER
-)"""
+"""
+def gstreamer_pipeline(
+    sensor_id,
+    capture_width=1280,
+    capture_height=720,
+    display_width=960,
+    display_height=540,
+    framerate=30,
+    flip_method=0,
+):
+    return (
+        f"nvarguscamerasrc sensor-id={sensor_id} ! "
+        f"video/x-raw(memory:NVMM), width=(int){capture_width}, height=(int){capture_height}, framerate=(fraction){framerate}/1 ! "
+        f"nvvidconv flip-method={flip_method} ! "
+        f"video/x-raw, width=(int){display_width}, height=(int){display_height}, format=(string)BGRx ! "
+        "videoconvert ! "
+        "video/x-raw, format=(string)BGR ! appsink"
+    )
+"""
 
 if __name__ == "__main__":
     from pipeline import gstreamer_pipeline
