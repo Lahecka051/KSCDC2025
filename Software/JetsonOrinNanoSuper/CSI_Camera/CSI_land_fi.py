@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import time
+from pipeline import gstreamer_pipeline
 
 class Landing:
     def __init__(self, cap, marker_path = "/home/kscdc2025/Marker.png"):
@@ -176,12 +177,21 @@ class Landing:
     
         return self.marker_center is not None  # 마커 탐지 여부 반환
 
-cap = cv2.VideoCapture(
+"""cap = cv2.VideoCapture(
     "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
     "nvvidconv flip-method=2 ! video/x-raw, width=640, height=480, format=BGRx ! "
     "videoconvert ! video/x-raw, format=BGR ! appsink",
     cv2.CAP_GSTREAMER
-)
+)"""
 
-landing = Landing(cap)
-landing.run()
+if __name__ == "__main__":
+    from pipeline import gstreamer_pipeline
+
+    pipeline0 = gstreamer_pipeline(sensor_id=0)
+    cap = cv2.VideoCapture(pipeline0, cv2.CAP_GSTREAMER)
+
+    if not cap.isOpened():
+        print("GStreamer 파이프라인을 열 수 없습니다. 카메라 연결이나 설정을 확인하세요.")
+    else:
+        landing = Landing(cap)
+        landing.run()
