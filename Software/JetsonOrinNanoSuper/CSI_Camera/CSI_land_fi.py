@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import time
+import cv2.aruco as aruco
 
 class Landing:
     def __init__(self, marker_path = "/Users/GwonHyeokJun/Desktop/Marker.png"):
@@ -10,7 +11,15 @@ class Landing:
         if self.marker_color is None:
             raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {self.marker_path}")
 
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(
+            "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=1280, height=720, framerate=30/1 ! "
+            "nvvidconv flip-method=2 ! video/x-raw, width=640, height=480, format=BGRx ! "
+            "videoconvert ! video/x-raw, format=BGR ! appsink",
+            cv2.CAP_GSTREAMER
+        )
+        self.marker_size = 100
+        self.aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        self.parameters = aruco.DetectorParameters_create()
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
