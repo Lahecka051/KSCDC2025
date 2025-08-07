@@ -15,18 +15,13 @@ GST_ARGUS: Running with following settings:
 GST_ARGUS: Setup Complete, Starting captures for 0 seconds
 GST_ARGUS: Starting repeat capture requests.
 CONSUMER: Producer has connected; continuing.
-[ WARN:0@1.121] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
+[ WARN:0@1.111] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
 Traceback (most recent call last):
   File "/home/kscdc2025/check.py", line 189, in <module>
     landing = Landing(cap)
-  File "/home/kscdc2025/check.py", line 10, in __init__
-    self.marker_color = cv2.imread(self.marker_path)
-cv2.error: OpenCV(4.10.0) :-1: error: (-5:Bad argument) in function 'imread'
-> Overload resolution failed:
->  - Expected 'filename' to be a str or path-like object
->  - Expected 'filename' to be a str or path-like object
->  - Expected 'filename' to be a str or path-like object
-
+  File "/home/kscdc2025/check.py", line 17, in __init__
+    self.parameters = aruco.DetectorParameters_create()
+AttributeError: module 'cv2.aruco' has no attribute 'DetectorParameters_create'. Did you mean: 'DetectorParameters'?
 GST_ARGUS: Cleaning up
 CONSUMER: Done Success
 GST_ARGUS: Done Success
