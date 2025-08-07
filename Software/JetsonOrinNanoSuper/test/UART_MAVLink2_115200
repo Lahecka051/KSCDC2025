@@ -1,0 +1,52 @@
+import asyncio
+import logging
+from mavsdk import System
+from mavsdk.telemetry import TelemetryError
+
+# --- 로깅 설정 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+async def wait_for_connection(drone):
+    """드론이 연결될 때까지 기다리는 헬퍼 함수"""
+    async for state in drone.core.connection_state():
+        if state.is_connected:
+            logging.info("FC 발견 및 연결 성공!")
+            return True
+    return False
+
+async def run():
+    """
+    드론에 연결하고 텔레메트리 수신을 최종 확인하는 함수
+    """
+    drone = System()
+    connection_string = "serial:///dev/ttyTHS0:115200"
+    
+    logging.info(f"FC에 연결을 시도합니다: {connection_string}")
+    await drone.connect(system_address=connection_string)
+
+    try:
+        # --- 1. 연결 상태 확인 (20초 타임아웃) ---
+        await asyncio.wait_for(wait_for_connection(drone), timeout=20.0)
+        
+        # --- 2. 텔레메트리 수신으로 최종 연결 확인 (수정된 부분) ---
+        logging.info("FC로부터 텔레메트리(시동 상태) 수신을 시도합니다...")
+
+        # 시동 상태(armed) 정보를 한 번 받아오는 것으로 양방향 통신을 최종 확인합니다.
+        async for is_armed in drone.telemetry.armed():
+            logging.info(f"텔레메트리 수신 성공! 현재 시동 상태: {'ARMED' if is_armed else 'DISARMED'}")
+            logging.info("모든 연결 과정이 완료되었습니다. 이제 모터를 제어할 준비가 되었습니다.")
+            return # 성공적으로 완료되면 함수 종료
+
+    except asyncio.TimeoutError:
+        logging.error("연결 또는 텔레메트리 수신 시간 초과!")
+        logging.error("연결은 되었으나 FC가 텔레메트리 데이터를 보내지 않는 것일 수 있습니다.")
+        logging.error("FC를 재부팅하고 ArduPilot 설정을 다시 확인해 보세요.")
+    
+    except Exception as e:
+        logging.error(f"예상치 못한 오류 발생: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(run())
