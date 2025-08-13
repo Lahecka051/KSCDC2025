@@ -1,109 +1,80 @@
-# Jetson Orin Nano (드론)용 시뮬레이션 코드 (FC 연결 불필요)
-# 이 스크립트는 FC 없이 Jetson 보드의 로직(화재 탐지, 데이터 전송)을 테스트하기 위해 사용됩니다.
+# Jetson Orin Nano (드론)용 시뮬레이션 코드 (경로 수신 기능 추가)
+# PC로부터 순찰 경로를 전송받아 시뮬레이션을 시작합니다.
 
-import time
 import socket
-# import cv2 # 실제 CV 모델을 테스트할 때 주석 해제
+import threading
+import time
+import json
 
 # --- 설정 변수 ---
-CONTROLLER_PC_IP = '192.168.83.119' # 관제 센터 PC의 IP 주소 (실제 환경에 맞게 변경)
-CONTROLLER_PC_PORT = 9999
+# PC 관제 센터의 IP 주소 (화재 경보를 보낼 목적지)
+CONTROLLER_PC_IP = '192.168.83.118'  # 예: '192.168.0.5'
 
-# --- 가상 객체 (Dronekit의 Vehicle 객체를 흉내) ---
-class FakeVehicle:
-    """
-    dronekit의 Vehicle 객체를 흉내 내는 가상 클래스입니다.
-    FC 없이도 코드가 오류 없이 실행되도록 돕습니다.
-    """
-    def __init__(self):
-        # 가상의 드론 상태를 설정합니다.
-        self.mode = self._FakeMode("AUTO")
-        self.armed = True
-        self.location = self._FakeLocation()
-        print("가상 드론 객체 생성 완료. 모드: AUTO, 상태: Armed")
+# --- 순찰 시뮬레이션 로직 ---
+def run_patrol_simulation(path):
+    """전송받은 경로(path)에 따라 순찰 시뮬레이션을 수행합니다."""
+    print("\n--- 전송받은 경로로 순찰 시작 ---")
+    if not path:
+        print("경로 정보가 비어있어 순찰을 시작할 수 없습니다.")
+        return
 
-    class _FakeMode:
-        def __init__(self, name):
-            self.name = name
+    for i, waypoint in enumerate(path):
+        lat, lon = waypoint['lat'], waypoint['lon']
+        print(f"경로점 {i+1} ({lat:.4f}, {lon:.4f}) 으로 이동 중...")
+        time.sleep(5) # 각 경로점까지 5초간 비행한다고 가정
+        print(f"-> 경로점 {i+1} 도착.")
 
-    class _FakeLocation:
-        def __init__(self):
-            self.global_relative_frame = self._FakeFrame()
-        
-        class _FakeFrame:
-            def __init__(self):
-                # 시뮬레이션에서 사용할 고정된 가상 위치 (예: 판교)
-                self.lat = 37.4021
-                self.lon = 127.1089
-                self.alt = 20.0 # 가상 고도
+    print("\n최종 목적지 도착. 주변을 스캔합니다...")
+    time.sleep(3)
 
-    def close(self):
-        print("가상 드론 연결 해제.")
+    # 마지막 경로점 위치에서 화재가 발생했다고 가정
+    print("!!! 가상 화재 탐지 !!!")
+    fire_location = path[-1]
+    fire_lat, fire_lon = fire_location['lat'], fire_location['lon']
+    
+    print(f"화재 위치({fire_lat:.4f}, {fire_lon:.4f})를 관제 센터로 전송합니다.")
+    send_fire_alert(fire_lat, fire_lon)
+    print("--- 순찰 임무 완료 ---")
 
-# --- 화재 탐지 로직 (시뮬레이션) ---
-# 실제로는 이 함수에 OpenCV와 YOLO 모델을 이용한 탐지 코드가 들어갑니다.
-def detect_fire(vehicle):
-    """
-    카메라 영상을 분석하여 화재를 탐지하는 함수.
-    이 예제에서는 15초 후 화재를 탐지했다고 가정합니다.
-    """
-    if vehicle.mode.name == 'AUTO':
-        if not hasattr(detect_fire, "start_time"):
-            detect_fire.start_time = time.time() # 함수 첫 호출 시 시간 기록
-        
-        if time.time() - detect_fire.start_time > 15:
-            print("!!! 화재 탐지 (Jetson 시뮬레이션) !!!")
-            return True
-            
-    return False
-
-# --- 메인 로직 ---
-def main():
-    # 1. 가상 드론 객체 생성 (FC 연결 대체)
-    print("FC 연결 시퀀스를 대체하여 가상 드론을 생성합니다.")
-    vehicle = FakeVehicle()
-
+def send_fire_alert(lat, lon):
+    """화재 발생 위치를 PC 관제 센터로 전송합니다 (포트: 9999)."""
     try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((CONTROLLER_PC_IP, 9999))
+            message = f"{lat},{lon}"
+            s.sendall(message.encode('utf-8'))
+            print("화재 경보 데이터 전송 성공!")
+    except Exception as e:
+        print(f"[오류] 화재 경보 전송 실패: {e}")
+
+# --- 메인 로직: PC로부터 순찰 명령 수신 대기 ---
+def main():
+    """PC로부터 순찰 명령(경로 데이터)을 수신 대기하는 서버를 실행합니다."""
+    host = '0.0.0.0'  # 모든 인터페이스에서 연결 허용
+    port = 4000       # 임무 수신용 포트는 9998 사용
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((host, port))
+        s.listen()
+        print(f"Jetson 시뮬레이터: 순찰 명령 대기 중... (Port: {port})")
+
         while True:
-            # 2. 화재 탐지 로직 실행
-            is_fire_detected = detect_fire(vehicle)
-
-            if is_fire_detected:
-                # 3. 화재 탐지 시 처리
-                print("화재 탐지! 보고 절차 시작.")
-
-                # 가상 위치(GPS) 저장
-                fire_location = vehicle.location.global_relative_frame
-                print(f"화재 발생 위치 저장: lat={fire_location.lat}, lon={fire_location.lon}")
-
-                # 가상 착륙 대기
-                print("가상 착륙 시퀀스 진행... (5초 대기)")
-                time.sleep(5)
-                vehicle.armed = False # 가상 시동 끄기
-                print("가상 착륙 완료. 데이터 전송을 시도합니다.")
-
-                # 4. 관제 센터 PC로 데이터 전송
-                try:
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        s.connect((CONTROLLER_PC_IP, CONTROLLER_PC_PORT))
-                        message = f"{fire_location.lat},{fire_location.lon}"
-                        s.sendall(message.encode('utf-8'))
-                        print("화재 위치 데이터 전송 성공!")
-                except Exception as e:
-                    print(f"데이터 전송 실패: {e}")
-                
-                # 임무 완료 후 프로그램 종료
-                break
-            
-            print("가상 순찰 비행 중...")
-            time.sleep(1)
-
-    except KeyboardInterrupt:
-        print("사용자에 의해 프로그램이 중지되었습니다.")
-    finally:
-        # 5. 가상 연결 종료
-        vehicle.close()
-
+            conn, addr = s.accept()
+            with conn:
+                print(f"\nPC({addr})로부터 연결됨. 경로 데이터 수신 중...")
+                data = conn.recv(4096) # 경로 데이터가 길 수 있으므로 넉넉하게 받음
+                if data:
+                    try:
+                        # 수신된 JSON 데이터를 파이썬 리스트로 변환
+                        path_data = json.loads(data.decode('utf-8'))
+                        # 별도의 스레드에서 순찰 시뮬레이션 실행
+                        patrol_thread = threading.Thread(target=run_patrol_simulation, args=(path_data,), daemon=True)
+                        patrol_thread.start()
+                    except json.JSONDecodeError:
+                        print("수신된 데이터가 올바른 JSON 형식이 아닙니다.")
+                    except Exception as e:
+                        print(f"경로 데이터 처리 중 오류 발생: {e}")
 
 if __name__ == '__main__':
     main()
