@@ -17,7 +17,7 @@ logging.basicConfig(
 class DroneConnection:
     """드론 연결 및 통신을 관리하는 클래스"""
     
-    def __init__(self, connection_string="serial:///dev/ttyTHS0:115200"):
+    def __init__(self, connection_string="serial:///dev/ttyTHS1:115200"):
         """
         DroneConnection 초기화
         
