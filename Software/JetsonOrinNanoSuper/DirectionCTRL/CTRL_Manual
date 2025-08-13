@@ -1,0 +1,15 @@
+# 간단한 사용 예제
+from drone_connection import DroneConnection
+from drone_control import DroneController
+
+# 연결
+connection = DroneConnection()
+await connection.connect()
+
+# 컨트롤러 생성
+controller = DroneController(connection)
+
+# 이륙 후 제어
+await connection.takeoff()
+await controller.move_forward(2.0)  # 2m 전진
+await controller.rotate_yaw(90)      # 90도 회전
