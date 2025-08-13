@@ -65,5 +65,6 @@ if __name__ == '__main__':
     if not cap.isOpened():
         print("GStreamer 파이프라인 열기 실패")
     else:
-        obj_cap = Object_Capture(cap, target_class="person")
+        obj_cap = Object_Capture(cap, target_class="fire")
         obj_cap.run_and_capture()
+
