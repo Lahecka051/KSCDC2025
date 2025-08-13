@@ -6,7 +6,7 @@ simple_up_down.py
 
 import asyncio
 import logging
-from drone_connection import DroneConnection
+from drone_communication import DroneCommunication
 from drone_control import DroneController
 
 # 로깅 설정
@@ -21,7 +21,7 @@ async def up_down_test():
     """
     
     # 드론 연결
-    connection = DroneConnection("serial:///dev/ttyTHS1:115200")
+    communication = DroneCommunication("serial:///dev/ttyTHS1:115200")
     
     try:
         print("=" * 40)
@@ -30,17 +30,17 @@ async def up_down_test():
         
         # 1. 드론 연결
         print("\n[1/5] 드론 연결 중...")
-        if not await connection.connect(timeout=20.0):
+        if not await communication.connect(timeout=20.0):
             print("❌ 드론 연결 실패!")
             return
         print("✅ 연결 성공")
         
         # 컨트롤러 생성
-        controller = DroneController(connection)
+        controller = DroneController(communication)
         
         # 2. 시동 걸기
         print("\n[2/5] 시동 걸기...")
-        if not await connection.arm():
+        if not await communication.arm():
             print("❌ 시동 실패!")
             return
         print("✅ 시동 완료")
@@ -75,7 +75,7 @@ async def up_down_test():
         
         # 5. 시동 끄기
         print("\n[5/5] 시동 끄기...")
-        if not await connection.disarm():
+        if not await communication.disarm():
             print("⚠️  시동 끄기 실패 - 수동으로 끄세요")
         else:
             print("✅ 시동 꺼짐")
@@ -89,7 +89,7 @@ async def up_down_test():
         try:
             await controller.stop()
             await controller.move_down(distance_m=3.0, speed_m_s=0.5)
-            await connection.disarm()
+            await communication.disarm()
         except:
             print("❌ 수동 조작 필요!")
     
@@ -97,7 +97,7 @@ async def up_down_test():
         print(f"\n❌ 오류: {e}")
         try:
             await controller.stop()
-            await connection.disarm()
+            await communication.disarm()
         except:
             pass
 
