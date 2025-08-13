@@ -54,7 +54,7 @@ class App:
         # --- 지도 위젯 및 변수 초기화 ---
         self.map_widget = TkinterMapView(self.map_frame, width=900, height=500, corner_radius=0)
         self.map_widget.pack(fill="both", expand=True)
-        self.map_widget.set_position(37.5665, 126.9780)
+        self.map_widget.set_position(35.1422, 129.0968)
         self.map_widget.set_zoom(15)
         self.map_widget.add_right_click_menu_command(label="여기에 경로점 추가", command=self.add_waypoint_by_click, pass_coords=True)
         self.waypoints = []
@@ -83,11 +83,11 @@ class App:
         thread.start()
 
     def send_command_to_drone(self, drone_ip, message):
-        """드론에 순찰 경로 데이터를 전송합니다 (포트: 9998)."""
+        """드론에 순찰 경로 데이터를 전송합니다 (포트: 3999)."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                # 임무 전송용 포트는 9998 사용
-                s.connect((drone_ip, 9998))
+                # 임무 전송용 포트는 3999 사용
+                s.connect((drone_ip, 3999))
                 s.sendall(message.encode('utf-8'))
                 print(f"드론({drone_ip})으로 순찰 경로 전송 완료.")
                 # tkinter는 메인 스레드에서만 GUI 업데이트 가능
