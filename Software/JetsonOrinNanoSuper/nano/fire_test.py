@@ -37,10 +37,10 @@ def run_patrol_simulation(path):
     print("--- 순찰 임무 완료 ---")
 
 def send_fire_alert(lat, lon):
-    """화재 발생 위치를 PC 관제 센터로 전송합니다 (포트: 9999)."""
+    """화재 발생 위치를 PC 관제 센터로 전송합니다 (포트: 4000)."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((CONTROLLER_PC_IP, 9999))
+            s.connect((CONTROLLER_PC_IP, 4000))
             message = f"{lat},{lon}"
             s.sendall(message.encode('utf-8'))
             print("화재 경보 데이터 전송 성공!")
@@ -51,7 +51,7 @@ def send_fire_alert(lat, lon):
 def main():
     """PC로부터 순찰 명령(경로 데이터)을 수신 대기하는 서버를 실행합니다."""
     host = '0.0.0.0'  # 모든 인터페이스에서 연결 허용
-    port = 4000       # 임무 수신용 포트는 9998 사용
+    port = 3999       # 임무 수신용 포트는 3999 사용
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -78,3 +78,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
