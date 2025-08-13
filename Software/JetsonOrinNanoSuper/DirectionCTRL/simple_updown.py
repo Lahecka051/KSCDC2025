@@ -21,7 +21,7 @@ async def up_down_test():
     """
     
     # 드론 연결
-    connection = DroneConnection("serial:///dev/ttyTHS0:115200")
+    connection = DroneConnection("serial:///dev/ttyTHS1:115200")
     
     try:
         print("=" * 40)
