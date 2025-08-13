@@ -1,5 +1,5 @@
 """
-jetson_control_example.py
+drone_control.py
 Jetson에서 UART를 통해 드론을 제어하고 GPS 데이터를 수신하는 예제
 """
 
