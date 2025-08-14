@@ -1,0 +1,145 @@
+ 주요 기능
+1. Guided 모드 제어
+
+ArduPilot의 Guided 모드 활성화
+MAVLink를 통한 직접 FC 제어
+UART 시리얼 통신 (/dev/ttyTHS1:115200)
+
+2. 다양한 제어 방식
+
+속도 제어: NED/Body 좌표계 속도 명령
+위치 제어: NED 좌표계 위치 이동
+GPS 제어: 위도/경도 좌표 이동
+상대 이동: 현재 위치 기준 이동
+
+3. 주요 메소드
+python# 연결 및 초기화
+await guided.connect()
+await guided.set_guided_mode()
+
+# 시동 및 이륙
+await guided.arm()
+await guided.takeoff_guided(5.0)  # 5m 이륙
+
+# 속도 제어
+await guided.set_velocity_body(2.0, 0, 0)  # 전진 2m/s
+await guided.set_velocity_ned(0, 1.5, 0)   # 동쪽 1.5m/s
+
+# 위치 이동
+await guided.move_relative(5.0, 0, -2.0)  # 전방 5m, 상승 2m
+await guided.goto_position_global(35.123, 129.123, 20.0)  # GPS
+
+# 회전
+await guided.rotate_yaw(90)  # 90도 회전
+
+# 착륙
+await guided.land_guided()
+await guided.disarm()
+💡 사용 예제
+1. 기본 사용법
+pythonimport asyncio
+from ardupilot_guided_control import GuidedModeController
+
+async def fly():
+    # 컨트롤러 생성
+    guided = GuidedModeController("serial:///dev/ttyTHS1:115200")
+    
+    # 연결
+    await guided.connect()
+    
+    # Guided 모드 설정
+    await guided.set_guided_mode()
+    
+    # 시동 및 이륙
+    await guided.arm()
+    await guided.takeoff_guided(5.0)
+    
+    # 제어
+    await guided.set_velocity_body(2.0, 0, 0)  # 전진
+    await asyncio.sleep(3)
+    
+    # 착륙
+    await guided.land_guided()
+    await guided.disarm()
+
+asyncio.run(fly())
+2. 복잡한 미션
+pythonasync def mission():
+    guided = GuidedModeController()
+    await guided.connect()
+    await guided.set_guided_mode()
+    await guided.arm()
+    await guided.takeoff_guided(10.0)
+    
+    # 사각형 패턴 비행
+    movements = [
+        (10, 0, 0),   # 북쪽 10m
+        (0, 10, 0),   # 동쪽 10m
+        (-10, 0, 0),  # 남쪽 10m
+        (0, -10, 0),  # 서쪽 10m
+    ]
+    
+    for north, east, down in movements:
+        await guided.goto_position_ned(north, east, down)
+        await asyncio.sleep(5)
+    
+    # GPS 좌표로 이동
+    waypoints = [
+        (35.123456, 129.123456, 15.0),
+        (35.123556, 129.123556, 20.0),
+        (35.123656, 129.123656, 15.0),
+    ]
+    
+    for lat, lon, alt in waypoints:
+        await guided.goto_position_global(lat, lon, alt)
+        await asyncio.sleep(10)
+    
+    # RTL
+    await guided.return_to_launch()
+3. 실시간 제어
+pythonasync def realtime_control():
+    guided = GuidedModeController()
+    await guided.connect()
+    await guided.set_guided_mode()
+    await guided.arm()
+    await guided.takeoff_guided(5.0)
+    
+    # 실시간 제어 루프
+    while True:
+        # 센서나 AI의 입력 받기
+        command = get_control_input()  # 외부 함수
+        
+        if command['type'] == 'velocity':
+            await guided.set_velocity_body(
+                command['forward'],
+                command['right'],
+                command['down'],
+                command['yaw_rate']
+            )
+        elif command['type'] == 'position':
+            await guided.move_relative(
+                command['forward'],
+                command['right'],
+                command['down']
+            )
+        elif command['type'] == 'gps':
+            await guided.goto_position_global(
+                command['lat'],
+                command['lon'],
+                command['alt']
+            )
+        
+        await asyncio.sleep(0.1)  # 10Hz
+🔧 ArduPilot 설정
+FC에서 다음 설정이 필요합니다:
+
+MAVLink 설정
+
+SERIAL1_PROTOCOL = 2 (MAVLink2)
+SERIAL1_BAUD = 115 (115200 baud)
+
+Guided 모드 허용
+
+FLTMODE1 = 4 (Guided)
+또는
+FLTMODE_
