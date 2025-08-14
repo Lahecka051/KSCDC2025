@@ -48,7 +48,7 @@ def send_report_to_pc(report_type, data):
     """PC 관제 센터로 보고(경보 또는 이미지)를 전송합니다."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((CONTROLLER_PC_IP, 9999))
+            s.connect((CONTROLLER_PC_IP, 4000))
             
             # 1. 메시지 타입 전송
             s.sendall(report_type.encode('utf-8'))
