@@ -39,7 +39,7 @@ class Drone:
         self.logger = logging.getLogger(__name__)
         
         # 드론 연결
-        self.connection = DroneConnection("serial:///dev/ttyTHS0:115200")
+        self.connection = DroneConnection("serial:///dev/ttyTHS1:115200")
         self.controller = None
         
         # UART 통신
