@@ -20,7 +20,7 @@ logging.basicConfig(
 class DroneConnection:
     """드론 FC 연결 관리"""
     
-    def __init__(self, connection_string="serial:///dev/ttyTHS0:115200"):
+    def __init__(self, connection_string="serial:///dev/ttyTHS1:115200"):
         """
         초기화
         
@@ -392,7 +392,7 @@ async def simple_example():
     """간단한 사용 예제"""
     
     # 연결
-    connection = DroneConnection("serial:///dev/ttyTHS0:115200")
+    connection = DroneConnection("serial:///dev/ttyTHS1:115200")
     if not await connection.connect():
         print("연결 실패!")
         return
