@@ -1,332 +1,437 @@
 """
 drone_control.py
-Jetson에서 UART를 통해 드론을 제어하고 GPS 데이터를 수신하는 예제
+H743v2 FC 드론의 방향 제어 모듈
+4가지 파라미터로 간단한 제어
 """
 
-import serial
-import json
-import time
-import threading
-from datetime import datetime
+import asyncio
+import logging
+import math
+from typing import List, Tuple, Optional, Dict, Any
+from mavsdk import System
+from mavsdk.offboard import VelocityNedYaw
 
-class JetsonDroneControl:
-    """Jetson에서 드론 제어를 위한 클래스"""
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+class DroneConnection:
+    """드론 FC 연결 관리"""
     
-    def __init__(self, uart_port="/dev/ttyTHS1", baudrate=115200):
+    def __init__(self, connection_string="serial:///dev/ttyTHS0:115200"):
         """
         초기화
         
         Args:
-            uart_port (str): UART 포트
-            baudrate (int): 통신 속도
+            connection_string (str): FC 연결 문자열
         """
-        self.uart_port = uart_port
-        self.baudrate = baudrate
-        self.serial_conn = None
-        self.seq_num = 0
-        self.is_running = False
-        self.rx_thread = None
+        self.drone = System()
+        self.connection_string = connection_string
+        self.is_connected = False
+        self.logger = logging.getLogger(__name__)
         
-        # 수신된 GPS 데이터 저장
-        self.latest_gps_data = None
-        self.gps_data_lock = threading.Lock()
+    async def connect(self, timeout=30.0) -> bool:
+        """FC 연결"""
+        self.logger.info(f"FC 연결 시도: {self.connection_string}")
         
-    def connect(self):
-        """UART 연결"""
         try:
-            self.serial_conn = serial.Serial(
-                port=self.uart_port,
-                baudrate=self.baudrate,
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
-                stopbits=serial.STOPBITS_ONE,
-                timeout=0.1
-            )
+            await self.drone.connect(system_address=self.connection_string)
             
-            # 수신 스레드 시작
-            self.is_running = True
-            self.rx_thread = threading.Thread(target=self._rx_loop, daemon=True)
-            self.rx_thread.start()
+            # 연결 확인
+            await asyncio.wait_for(self._wait_for_connection(), timeout=timeout)
             
-            print(f"✅ UART 연결 성공: {self.uart_port}")
+            # 텔레메트리 확인
+            await self._verify_telemetry()
+            
+            self.is_connected = True
+            self.logger.info("FC 연결 성공!")
             return True
             
+        except asyncio.TimeoutError:
+            self.logger.error("FC 연결 타임아웃!")
+            return False
+            
         except Exception as e:
-            print(f"❌ UART 연결 실패: {e}")
+            self.logger.error(f"FC 연결 실패: {e}")
             return False
     
-    def disconnect(self):
-        """연결 해제"""
-        self.is_running = False
-        
-        if self.rx_thread:
-            self.rx_thread.join(timeout=2.0)
-        
-        if self.serial_conn and self.serial_conn.is_open:
-            self.serial_conn.close()
-        
-        print("UART 연결 해제됨")
+    async def _wait_for_connection(self):
+        """연결 대기"""
+        async for state in self.drone.core.connection_state():
+            if state.is_connected:
+                self.logger.info("FC 발견됨")
+                return True
     
-    def _rx_loop(self):
-        """수신 루프"""
-        buffer = ""
-        
-        while self.is_running:
-            try:
-                if self.serial_conn and self.serial_conn.in_waiting:
-                    data = self.serial_conn.read(self.serial_conn.in_waiting).decode('utf-8', errors='ignore')
-                    buffer += data
-                    
-                    while '\n' in buffer:
-                        line, buffer = buffer.split('\n', 1)
-                        line = line.strip()
-                        
-                        if line:
-                            self._process_received_message(line)
-                
-            except Exception as e:
-                print(f"수신 오류: {e}")
-            
-            time.sleep(0.01)
+    async def _verify_telemetry(self):
+        """텔레메트리 확인"""
+        async for is_armed in self.drone.telemetry.armed():
+            self.logger.info(f"텔레메트리 수신 - 시동: {'ON' if is_armed else 'OFF'}")
+            break
     
-    def _process_received_message(self, message):
-        """수신 메시지 처리"""
+    async def arm(self) -> bool:
+        """시동"""
         try:
-            data = json.loads(message)
-            msg_type = data.get('type', '')
-            
-            if msg_type == 'GPS':
-                # GPS 데이터 저장
-                with self.gps_data_lock:
-                    self.latest_gps_data = data.get('data', {})
-                print(f"📍 GPS 수신: Lat={self.latest_gps_data.get('position', {}).get('lat', 'N/A'):.6f}, "
-                      f"Lon={self.latest_gps_data.get('position', {}).get('lon', 'N/A'):.6f}")
-                      
-            elif msg_type == 'ACK':
-                print(f"✅ ACK 수신: seq={data.get('seq')}")
-                
-            elif msg_type == 'STATUS':
-                print(f"📊 상태 수신: {data.get('data')}")
-                
-        except json.JSONDecodeError:
-            pass  # GPS 외 메시지 무시
+            await self.drone.action.arm()
+            self.logger.info("시동 완료")
+            return True
         except Exception as e:
-            print(f"메시지 처리 오류: {e}")
+            self.logger.error(f"시동 실패: {e}")
+            return False
     
-    def send_control_command(self, vertical="level", horizontal="hover", 
-                           rotation=0, speed=0, speed_type="percent"):
+    async def disarm(self) -> bool:
+        """시동 끄기"""
+        try:
+            await self.drone.action.disarm()
+            self.logger.info("시동 꺼짐")
+            return True
+        except Exception as e:
+            self.logger.error(f"시동 끄기 실패: {e}")
+            return False
+    
+    async def takeoff(self, altitude=2.0) -> bool:
+        """이륙"""
+        try:
+            await self.drone.action.set_takeoff_altitude(altitude)
+            await self.drone.action.takeoff()
+            self.logger.info(f"이륙 중... (목표 고도: {altitude}m)")
+            return True
+        except Exception as e:
+            self.logger.error(f"이륙 실패: {e}")
+            return False
+    
+    async def land(self) -> bool:
+        """착륙"""
+        try:
+            await self.drone.action.land()
+            self.logger.info("착륙 중...")
+            return True
+        except Exception as e:
+            self.logger.error(f"착륙 실패: {e}")
+            return False
+    
+    async def get_telemetry(self) -> Dict[str, Any]:
+        """텔레메트리 데이터 수집"""
+        telemetry = {}
+        
+        try:
+            # 위치
+            async for position in self.drone.telemetry.position():
+                telemetry['position'] = {
+                    'lat': position.latitude_deg,
+                    'lon': position.longitude_deg,
+                    'alt_abs': position.absolute_altitude_m,
+                    'alt_rel': position.relative_altitude_m
+                }
+                break
+            
+            # 속도
+            async for velocity in self.drone.telemetry.velocity_ned():
+                telemetry['velocity'] = {
+                    'north': velocity.north_m_s,
+                    'east': velocity.east_m_s,
+                    'down': velocity.down_m_s
+                }
+                break
+            
+            # 자세
+            async for attitude in self.drone.telemetry.attitude_euler():
+                telemetry['attitude'] = {
+                    'roll': attitude.roll_deg,
+                    'pitch': attitude.pitch_deg,
+                    'yaw': attitude.yaw_deg
+                }
+                break
+            
+            # 배터리
+            async for battery in self.drone.telemetry.battery():
+                telemetry['battery'] = {
+                    'voltage': battery.voltage_v,
+                    'percent': battery.remaining_percent
+                }
+                break
+            
+            # GPS 상태
+            async for gps in self.drone.telemetry.gps_info():
+                telemetry['gps'] = {
+                    'satellites': gps.num_satellites,
+                    'fix_type': gps.fix_type.value
+                }
+                break
+                
+        except Exception as e:
+            self.logger.error(f"텔레메트리 수집 오류: {e}")
+        
+        return telemetry
+
+
+class DroneController:
+    """드론 방향 제어 - 간소화된 인터페이스"""
+    
+    def __init__(self, connection: DroneConnection):
         """
-        드론 제어 명령 전송
+        초기화
         
         Args:
-            vertical (str): 수직 방향 (up/level/down)
-            horizontal (str): 수평 방향 (forward/backward/left/right/forward_left/...)
-            rotation (float): 회전 각도 (0-359)
-            speed (float): 속도
-            speed_type (str): 속도 타입 (percent/m/s)
+            connection (DroneConnection): 드론 연결 객체
         """
-        if not self.serial_conn or not self.serial_conn.is_open:
-            print("❌ UART 연결되지 않음")
-            return False
+        self.connection = connection
+        self.drone = connection.drone
+        self.logger = logging.getLogger(__name__)
         
+        # Offboard 모드 상태
+        self.offboard_enabled = False
+        
+        # 속도 제한 설정
+        self.MAX_SPEED_HORIZONTAL = 10.0  # m/s (100% 모터 부하 시)
+        self.MAX_SPEED_VERTICAL = 3.0     # m/s (100% 모터 부하 시)
+        self.MAX_ROTATION_SPEED = 60.0    # deg/s (최대 회전 속도)
+        
+    async def start_offboard(self) -> bool:
+        """Offboard 모드 시작"""
         try:
-            self.seq_num += 1
+            # 초기 설정값
+            await self.drone.offboard.set_velocity_ned(
+                VelocityNedYaw(0.0, 0.0, 0.0, 0.0)
+            )
             
-            command = {
-                'type': 'CTRL',
-                'seq': self.seq_num,
-                'timestamp': datetime.now().isoformat(),
-                'command': {
-                    'vertical': vertical,
-                    'horizontal': horizontal,
-                    'rotation': rotation,
-                    'speed': speed,
-                    'speed_type': speed_type
-                }
-            }
-            
-            json_str = json.dumps(command) + '\n'
-            self.serial_conn.write(json_str.encode('utf-8'))
-            
-            print(f"📤 명령 전송: V={vertical}, H={horizontal}, R={rotation}°, S={speed}{speed_type}")
+            # Offboard 시작
+            await self.drone.offboard.start()
+            self.offboard_enabled = True
+            self.logger.info("Offboard 모드 활성화")
             return True
             
         except Exception as e:
-            print(f"❌ 명령 전송 실패: {e}")
+            self.logger.error(f"Offboard 모드 시작 실패: {e}")
             return False
     
-    def get_latest_gps(self):
-        """최신 GPS 데이터 반환"""
-        with self.gps_data_lock:
-            return self.latest_gps_data.copy() if self.latest_gps_data else None
+    async def stop_offboard(self) -> bool:
+        """Offboard 모드 종료"""
+        try:
+            await self.drone.offboard.stop()
+            self.offboard_enabled = False
+            self.logger.info("Offboard 모드 종료")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Offboard 모드 종료 실패: {e}")
+            return False
     
-    def simple_control_menu(self):
-        """간단한 제어 메뉴"""
-        print("\n" + "="*50)
-        print("드론 제어 메뉴")
-        print("="*50)
-        print("1. 전진 (Forward)")
-        print("2. 후진 (Backward)")
-        print("3. 좌측 (Left)")
-        print("4. 우측 (Right)")
-        print("5. 상승 (Up)")
-        print("6. 하강 (Down)")
-        print("7. 좌회전 (Rotate Left)")
-        print("8. 우회전 (Rotate Right)")
-        print("9. 대각선 이동 (Forward-Right)")
-        print("0. 정지 (Hover)")
-        print("q. 종료")
-        print("-"*50)
-    
-    def run_interactive_control(self):
-        """대화형 제어 실행"""
-        if not self.connect():
-            return
+    async def execute_cmd(self, cmd: List) -> bool:
+        """
+        드론 제어 명령 실행
         
-        print("\n드론 제어 시작. 명령을 입력하세요.")
+        Args:
+            cmd: 
+                - 4개 값: [vertical, horizontal, rotation, motor_percent]
+                - 3개 값 (GPS): ["gps", latitude, longitude, altitude(선택)]
+                - 4개 값 (GPS): ["gps", latitude, longitude, altitude]
+        
+        Examples:
+            drone.cmd = ["up", "forward_left", 30, 50]  # 일반 제어
+            drone.cmd = ["gps", 35.123456, 129.123456]  # GPS 이동 (현재 고도 유지)
+            drone.cmd = ["gps", 35.123456, 129.123456, 10.0]  # GPS 이동 (지정 고도)
+        """
+        if len(cmd) < 3 or len(cmd) > 4:
+            self.logger.error(f"잘못된 명령 형식: {cmd}")
+            return False
+        
+        # GPS 명령 처리
+        if cmd[0] == "gps":
+            return await self._execute_gps_cmd(cmd)
+        
+        # 일반 제어 명령 처리
+        if len(cmd) != 4:
+            self.logger.error(f"일반 제어는 4개 값 필요: {cmd}")
+            return False
+        
+        vertical, horizontal, rotation, motor_percent = cmd
+        
+        if not self.connection.is_connected:
+            self.logger.warning("드론이 연결되지 않음")
+            return False
         
         try:
-            while True:
-                self.simple_control_menu()
-                choice = input("선택> ").strip().lower()
-                
-                if choice == 'q':
-                    break
-                elif choice == '1':
-                    self.send_control_command(horizontal="forward", speed=50)
-                elif choice == '2':
-                    self.send_control_command(horizontal="backward", speed=50)
-                elif choice == '3':
-                    self.send_control_command(horizontal="left", speed=50)
-                elif choice == '4':
-                    self.send_control_command(horizontal="right", speed=50)
-                elif choice == '5':
-                    self.send_control_command(vertical="up", speed=30)
-                elif choice == '6':
-                    self.send_control_command(vertical="down", speed=30)
-                elif choice == '7':
-                    self.send_control_command(rotation=270, speed=0)  # 90도 좌회전
-                elif choice == '8':
-                    self.send_control_command(rotation=90, speed=0)   # 90도 우회전
-                elif choice == '9':
-                    self.send_control_command(horizontal="forward_right", speed=50)
-                elif choice == '0':
-                    self.send_control_command(horizontal="hover", speed=0)
+            # 모터 부하를 속도로 변환 (0-100% -> 0-MAX_SPEED m/s)
+            h_speed = (motor_percent / 100.0) * self.MAX_SPEED_HORIZONTAL
+            v_speed = (motor_percent / 100.0) * self.MAX_SPEED_VERTICAL
+            
+            # NED 속도 계산
+            north = 0.0  # 북쪽(전진+)
+            east = 0.0   # 동쪽(우측+)
+            down = 0.0   # 아래(하강+)
+            
+            # 1. 수직 속도 처리
+            if vertical == "up":
+                down = -v_speed
+            elif vertical == "down":
+                down = v_speed
+            # "level"인 경우 down = 0
+            
+            # 2. 수평 속도 처리
+            if horizontal == "forward":
+                north = h_speed
+            elif horizontal == "backward":
+                north = -h_speed
+            elif horizontal == "left":
+                east = -h_speed
+            elif horizontal == "right":
+                east = h_speed
+            elif horizontal == "forward_left":
+                north = h_speed * 0.707  # 45도 대각선
+                east = -h_speed * 0.707
+            elif horizontal == "forward_right":
+                north = h_speed * 0.707
+                east = h_speed * 0.707
+            elif horizontal == "backward_left":
+                north = -h_speed * 0.707
+                east = -h_speed * 0.707
+            elif horizontal == "backward_right":
+                north = -h_speed * 0.707
+                east = h_speed * 0.707
+            # "hover"인 경우 north = east = 0
+            
+            # 3. 회전 처리 (0-359도를 -180~180도로 변환)
+            yaw_rate = 0.0
+            if rotation != 0:
+                # 최단 경로 회전
+                if rotation > 180:
+                    yaw_rate = -(360 - rotation)
                 else:
-                    print("잘못된 선택입니다.")
+                    yaw_rate = rotation
                 
-                time.sleep(0.5)  # 명령 간 간격
-                
-        except KeyboardInterrupt:
-            print("\n\n중단됨")
-        
-        finally:
-            self.disconnect()
-
-
-def example_sequence():
-    """예제 시퀀스 실행"""
-    controller = JetsonDroneControl("/dev/ttyTHS1", 115200)
+                # 회전 속도 제한
+                yaw_rate = max(-self.MAX_ROTATION_SPEED, 
+                              min(self.MAX_ROTATION_SPEED, yaw_rate))
+            
+            # 4. 명령 전송
+            await self.drone.offboard.set_velocity_ned(
+                VelocityNedYaw(north, east, down, yaw_rate)
+            )
+            
+            self.logger.info(f"CMD 실행: [{vertical}, {horizontal}, {rotation}°, {motor_percent}%] "
+                           f"-> NED({north:.1f}, {east:.1f}, {down:.1f}) Yaw:{yaw_rate:.1f}°/s")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"명령 실행 실패: {e}")
+            return False
     
-    if not controller.connect():
+    async def _execute_gps_cmd(self, cmd: List) -> bool:
+        """
+        GPS 좌표로 이동
+        
+        Args:
+            cmd: ["gps", latitude, longitude, altitude(선택)]
+        """
+        try:
+            if len(cmd) == 3:
+                # 현재 고도 유지
+                lat, lon = cmd[1], cmd[2]
+                
+                # 현재 고도 가져오기
+                current_alt = 10.0  # 기본값
+                async for position in self.drone.telemetry.position():
+                    current_alt = position.relative_altitude_m
+                    break
+                
+                alt = current_alt
+                
+            elif len(cmd) == 4:
+                # 지정 고도
+                lat, lon, alt = cmd[1], cmd[2], cmd[3]
+            
+            else:
+                self.logger.error(f"GPS 명령 형식 오류: {cmd}")
+                return False
+            
+            # 현재 heading 유지
+            current_heading = 0.0
+            async for attitude in self.drone.telemetry.attitude_euler():
+                current_heading = attitude.yaw_deg
+                break
+            
+            # GPS 좌표로 이동
+            await self.drone.action.goto_location(
+                latitude_deg=lat,
+                longitude_deg=lon,
+                absolute_altitude_m=alt,
+                yaw_deg=current_heading
+            )
+            
+            self.logger.info(f"GPS 이동: ({lat:.6f}, {lon:.6f}, {alt:.1f}m)")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"GPS 이동 실패: {e}")
+            return False
+    
+    async def stop(self) -> bool:
+        """정지 (호버링)"""
+        return await self.execute_cmd(["level", "hover", 0, 0])
+    
+    async def emergency_stop(self) -> bool:
+        """긴급 정지"""
+        try:
+            await self.drone.offboard.set_velocity_ned(
+                VelocityNedYaw(0.0, 0.0, 0.0, 0.0)
+            )
+            await self.drone.action.hold()
+            self.logger.warning("긴급 정지 실행!")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"긴급 정지 실패: {e}")
+            return False
+
+
+# 간단한 사용 예제
+async def simple_example():
+    """간단한 사용 예제"""
+    
+    # 연결
+    connection = DroneConnection("serial:///dev/ttyTHS0:115200")
+    if not await connection.connect():
+        print("연결 실패!")
         return
     
-    try:
-        print("\n자동 비행 시퀀스 시작")
-        
-        # 1. 전진하면서 상승
-        print("\n[1] 전진하면서 상승")
-        controller.send_control_command(
-            vertical="up",
-            horizontal="forward",
-            speed=50,
-            speed_type="percent"
-        )
-        time.sleep(3)
-        
-        # 2. 우상향 대각선 이동
-        print("\n[2] 우상향 대각선 이동")
-        controller.send_control_command(
-            vertical="level",
-            horizontal="forward_right",
-            speed=60,
-            speed_type="percent"
-        )
-        time.sleep(3)
-        
-        # 3. 제자리 회전
-        print("\n[3] 90도 우회전")
-        controller.send_control_command(
-            vertical="level",
-            horizontal="hover",
-            rotation=90,
-            speed=0
-        )
-        time.sleep(2)
-        
-        # 4. 후진
-        print("\n[4] 후진")
-        controller.send_control_command(
-            vertical="level",
-            horizontal="backward",
-            speed=40,
-            speed_type="percent"
-        )
-        time.sleep(3)
-        
-        # 5. 하강하면서 정지
-        print("\n[5] 하강하면서 정지")
-        controller.send_control_command(
-            vertical="down",
-            horizontal="hover",
-            speed=30,
-            speed_type="percent"
-        )
-        time.sleep(3)
-        
-        # 6. 완전 정지
-        print("\n[6] 완전 정지")
-        controller.send_control_command(
-            vertical="level",
-            horizontal="hover",
-            speed=0
-        )
-        
-        print("\n✅ 시퀀스 완료")
-        
-        # GPS 데이터 확인
-        time.sleep(1)
-        gps = controller.get_latest_gps()
-        if gps:
-            print(f"\n현재 GPS 데이터:")
-            print(f"  위치: {gps.get('position')}")
-            print(f"  속도: {gps.get('velocity')}")
-            print(f"  자세: {gps.get('attitude')}")
-            print(f"  배터리: {gps.get('battery')}")
-        
-    except KeyboardInterrupt:
-        print("\n중단됨")
+    controller = DroneController(connection)
     
-    finally:
-        controller.disconnect()
+    # 시동 및 이륙
+    await connection.arm()
+    await asyncio.sleep(2)
+    await connection.takeoff(2.0)
+    await asyncio.sleep(5)
+    
+    # Offboard 모드 시작
+    await controller.start_offboard()
+    
+    # 간단한 4개 파라미터 명령
+    commands = [
+        ["level", "forward", 0, 50],       # 전진 50%
+        ["up", "forward_right", 0, 60],    # 우상향 대각선 60%
+        ["level", "hover", 90, 0],         # 90도 회전
+        ["down", "backward", 0, 40],       # 후진하며 하강 40%
+        ["level", "hover", 0, 0],          # 정지
+    ]
+    
+    for cmd in commands:
+        print(f"실행: {cmd}")
+        await controller.execute_cmd(cmd)
+        await asyncio.sleep(3)
+    
+    # Offboard 모드 종료
+    await controller.stop_offboard()
+    
+    # 착륙
+    await connection.land()
+    await asyncio.sleep(5)
+    await connection.disarm()
+    
+    print("완료!")
 
 
 if __name__ == "__main__":
-    import sys
-    
-    print("="*60)
-    print("Jetson 드론 제어 프로그램")
-    print("="*60)
-    print("1. 대화형 제어 모드")
-    print("2. 자동 시퀀스 실행")
-    print("0. 종료")
-    
-    choice = input("\n선택> ").strip()
-    
-    if choice == "1":
-        controller = JetsonDroneControl()
-        controller.run_interactive_control()
-    elif choice == "2":
-        example_sequence()
-    else:
-        print("종료합니다.")
+    asyncio.run(simple_example())
