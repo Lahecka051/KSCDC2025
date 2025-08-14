@@ -16,7 +16,7 @@ import signal
 import sys
 
 # 모듈 임포트
-from communication import UARTCommunication
+from drone_communication import UARTCommunication
 from drone_control import DroneConnection, DroneController
 
 # 로깅 설정
