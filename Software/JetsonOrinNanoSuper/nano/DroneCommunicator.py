@@ -1,0 +1,57 @@
+# DroneCommunicator.py
+import socket
+import json
+import os
+
+class DroneCommunicator:
+    """
+    PC 관제 센터와의 모든 '클라이언트' 통신을 전담하는 클래스.
+    (데이터를 '보내는' 역할)
+    """
+    def __init__(self, pc_hostname, pc_port=4000):
+        """
+        통신 객체를 생성할 때 접속할 PC의 주소와 포트를 설정합니다.
+        """
+        self.pc_hostname = pc_hostname
+        self.pc_port = pc_port
+        print(f"[통신 모듈] 초기화 완료. 목표 PC: {self.pc_hostname}:{self.pc_port}")
+
+    def send_fire_report(self, coordinates, image_path):
+        """PC 관제 센터로 화재 보고(좌표, 이미지)를 전송합니다."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.pc_hostname, self.pc_port))
+                
+                header = {
+                    "type": "FIRE_REPORT",
+                    "coordinates": coordinates,
+                    "image_size": os.path.getsize(image_path)
+                }
+                header_json = json.dumps(header)
+                header_bytes = header_json.encode('utf-8').ljust(1024, b' ')
+
+                s.sendall(header_bytes)
+                s.recv(1024)  # HEADER_OK
+                with open(image_path, 'rb') as f:
+                    s.sendall(f.read())
+                
+                print(f"[통신 모듈] 화재 보고 전송 성공!")
+        except Exception as e:
+            print(f"[통신 모듈][오류] PC로 보고 전송 실패: {e}")
+
+    def send_status_update(self, status_message):
+        """PC 관제 센터로 간단한 상태 메시지를 전송합니다."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((self.pc_hostname, self.pc_port))
+                
+                message_data = {
+                    "type": "STATUS_UPDATE",
+                    "status": status_message
+                }
+                message_bytes = json.dumps(message_data).encode('utf-8')
+                
+                s.sendall(message_bytes)
+                print(f"[통신 모듈] 상태 보고 전송 성공: {status_message}")
+        except Exception as e:
+            print(f"[통신 모듈][오류] PC로 상태 보고 전송 실패: {e}")
