@@ -10,7 +10,7 @@ import os
 # from dronekit import connect, VehicleMode
 
 # --- 설정 변수 ---
-CONTROLLER_PC_IP = '192.168.83.128'  # 관제 센터 PC의 IP 주소
+CONTROLLER_PC_IP = '지니컴.local'  # 관제 센터 PC의 IP 주소
 
 # --- 시뮬레이션용 가상 객체 및 함수 (이전과 동일) ---
 class FakeVehicle:
