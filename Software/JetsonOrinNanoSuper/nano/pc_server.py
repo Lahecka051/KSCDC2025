@@ -130,7 +130,9 @@ class App:
         # 이미지 표시 및 저장
         try:
             image = Image.open(io.BytesIO(img_data))
-            save_dir = "captures"
+            # 이 스크립트 파일의 실제 위치를 기준으로 경로를 설정
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            save_dir = os.path.join(script_dir, "captures") # 스크립트 옆에 'captures' 폴더 경로를 지정
             os.makedirs(save_dir, exist_ok=True)
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             filepath = os.path.join(save_dir, f"fire_{timestamp}.jpg")
@@ -201,4 +203,5 @@ if __name__ == "__main__":
     root = tkinter.Tk()
     app = App(root)
     root.mainloop()
+
 
