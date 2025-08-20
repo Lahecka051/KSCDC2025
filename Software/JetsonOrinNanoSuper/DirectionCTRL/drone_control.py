@@ -1,7 +1,7 @@
 """
-drone_control.py - 실전 최종 버전
-H743v2 FC 드론의 방향 제어 모듈
-MAVSDK를 통한 정밀 제어, GPS 이동, Guided 모드 지원
+drone_control.py - FC 직접 연결 버전
+H743v2 FC와 Jetson이 /dev/ttyTHS1:115200으로 직접 연결
+MAVSDK를 통한 MAVLink 통신
 """
 
 import asyncio
@@ -54,28 +54,45 @@ class SafetyLimits:
     max_rotation_speed: float = 60.0    # 최대 회전 속도 (deg/s)
     geofence_radius: float = 150.0      # 지오펜스 반경 (m)
 
-class DroneConnection:
-    """드론 FC 연결 관리"""
+class DroneController:
+    """드론 FC 직접 제어 - /dev/ttyTHS1 사용"""
     
-    def __init__(self, connection_string="serial:///dev/ttyTHS0:115200"):
+    def __init__(self, connection_string="serial:///dev/ttyTHS1:115200"):
         """
         초기화
         
         Args:
-            connection_string (str): FC 연결 문자열
+            connection_string (str): FC 연결 문자열 (기본: /dev/ttyTHS1)
         """
         self.drone = System()
         self.connection_string = connection_string
         self.is_connected = False
         self.logger = logging.getLogger(__name__)
         
-        # 연결 재시도 설정
-        self.max_retries = 3
-        self.retry_delay = 2.0
+        # 제어 모드
+        self.control_mode = ControlMode.MANUAL
+        self.offboard_enabled = False
+        
+        # 안전 제한
+        self.safety = SafetyLimits()
+        
+        # Home 위치
+        self.home_position = None
+        
+        # 제어 상태
+        self.last_command_time = time.time()
+        self.command_timeout = 1.0  # 1초
         
         # 텔레메트리 캐시
         self.telemetry_cache = {}
         self.cache_timeout = 0.5  # 500ms
+        
+        # 콜백
+        self.emergency_callback = None
+        
+        # 연결 재시도 설정
+        self.max_retries = 3
+        self.retry_delay = 2.0
         
     async def connect(self, timeout=30.0) -> bool:
         """FC 연결 (재시도 포함)"""
@@ -83,6 +100,7 @@ class DroneConnection:
             try:
                 self.logger.info(f"FC 연결 시도 {attempt+1}/{self.max_retries}: {self.connection_string}")
                 
+                # MAVLink 연결
                 await self.drone.connect(system_address=self.connection_string)
                 
                 # 연결 확인
@@ -228,9 +246,9 @@ class DroneConnection:
         """이륙"""
         try:
             # 고도 제한 체크
-            if altitude > 50.0:
-                self.logger.warning(f"고도 제한: {altitude}m -> 50.0m")
-                altitude = 50.0
+            if altitude > self.safety.max_altitude:
+                self.logger.warning(f"고도 제한: {altitude}m -> {self.safety.max_altitude}m")
+                altitude = self.safety.max_altitude
             
             self.logger.info(f"이륙 중... (목표 고도: {altitude}m)")
             await self.drone.action.set_takeoff_altitude(altitude)
@@ -275,147 +293,6 @@ class DroneConnection:
             self.logger.error(f"착륙 실패: {e}")
             return False
     
-    async def get_telemetry(self) -> Dict[str, Any]:
-        """텔레메트리 데이터 수집 (캐시 사용)"""
-        current_time = time.time()
-        
-        # 캐시 확인
-        if self.telemetry_cache.get('timestamp', 0) + self.cache_timeout > current_time:
-            return self.telemetry_cache.get('data', {})
-        
-        telemetry = {}
-        
-        try:
-            # 위치
-            async for position in self.drone.telemetry.position():
-                telemetry['position'] = {
-                    'lat': position.latitude_deg,
-                    'lon': position.longitude_deg,
-                    'alt_abs': position.absolute_altitude_m,
-                    'alt_rel': position.relative_altitude_m
-                }
-                break
-            
-            # 속도
-            async for velocity in self.drone.telemetry.velocity_ned():
-                telemetry['velocity'] = {
-                    'north': velocity.north_m_s,
-                    'east': velocity.east_m_s,
-                    'down': velocity.down_m_s,
-                    'ground_speed': math.sqrt(velocity.north_m_s**2 + velocity.east_m_s**2)
-                }
-                break
-            
-            # 자세
-            async for attitude in self.drone.telemetry.attitude_euler():
-                telemetry['attitude'] = {
-                    'roll': attitude.roll_deg,
-                    'pitch': attitude.pitch_deg,
-                    'yaw': attitude.yaw_deg
-                }
-                break
-            
-            # 배터리
-            async for battery in self.drone.telemetry.battery():
-                telemetry['battery'] = {
-                    'voltage': battery.voltage_v,
-                    'current': battery.current_battery_a,
-                    'percent': battery.remaining_percent
-                }
-                break
-            
-            # GPS
-            async for gps in self.drone.telemetry.gps_info():
-                telemetry['gps'] = {
-                    'satellites': gps.num_satellites,
-                    'fix_type': gps.fix_type.value
-                }
-                break
-            
-            # 상태
-            async for armed in self.drone.telemetry.armed():
-                telemetry['armed'] = armed
-                break
-            
-            async for in_air in self.drone.telemetry.in_air():
-                telemetry['in_air'] = in_air
-                break
-            
-            async for mode in self.drone.telemetry.flight_mode():
-                telemetry['flight_mode'] = str(mode)
-                break
-            
-            # RC 상태
-            async for rc in self.drone.telemetry.rc_status():
-                telemetry['rc'] = {
-                    'available': rc.is_available,
-                    'signal_strength': rc.signal_strength_percent
-                }
-                break
-            
-            # 캐시 업데이트
-            self.telemetry_cache = {
-                'timestamp': current_time,
-                'data': telemetry
-            }
-            
-        except Exception as e:
-            self.logger.error(f"텔레메트리 수집 오류: {e}")
-        
-        return telemetry
-    
-    async def get_status(self) -> FlightStatus:
-        """비행 상태 가져오기"""
-        status = FlightStatus()
-        
-        try:
-            telemetry = await self.get_telemetry()
-            
-            status.is_armed = telemetry.get('armed', False)
-            status.is_flying = telemetry.get('in_air', False)
-            status.mode = telemetry.get('flight_mode', 'UNKNOWN')
-            status.altitude = telemetry.get('position', {}).get('alt_rel', 0.0)
-            status.battery_percent = telemetry.get('battery', {}).get('percent', 0.0)
-            status.gps_satellites = telemetry.get('gps', {}).get('satellites', 0)
-            status.heading = telemetry.get('attitude', {}).get('yaw', 0.0)
-            
-        except:
-            pass
-        
-        return status
-
-
-class DroneController:
-    """드론 방향 제어 - 간소화된 인터페이스"""
-    
-    def __init__(self, connection: DroneConnection):
-        """
-        초기화
-        
-        Args:
-            connection (DroneConnection): 드론 연결 객체
-        """
-        self.connection = connection
-        self.drone = connection.drone
-        self.logger = logging.getLogger(__name__)
-        
-        # 제어 모드
-        self.control_mode = ControlMode.MANUAL
-        self.offboard_enabled = False
-        
-        # 안전 제한
-        self.safety = SafetyLimits()
-        
-        # Home 위치
-        self.home_position = None
-        
-        # 제어 상태
-        self.last_command_time = time.time()
-        self.command_timeout = 1.0  # 1초
-        
-        # 콜백
-        self.emergency_callback = None
-        
     async def start_offboard(self) -> bool:
         """Offboard/Guided 모드 시작"""
         try:
@@ -587,7 +464,7 @@ class DroneController:
                 alt = float(cmd[3])
             else:
                 # 현재 고도 유지
-                telemetry = await self.connection.get_telemetry()
+                telemetry = await self.get_telemetry()
                 alt = telemetry.get('position', {}).get('alt_rel', 10.0)
             
             # 거리 체크
@@ -601,8 +478,14 @@ class DroneController:
                     self.logger.warning(f"최대 거리 초과: {distance:.1f}m")
                     return False
             
+            # 현재 heading 유지
+            current_heading = 0.0
+            async for attitude in self.drone.telemetry.attitude_euler():
+                current_heading = attitude.yaw_deg
+                break
+            
             # GPS 이동
-            await self.drone.action.goto_location(lat, lon, alt, 0)
+            await self.drone.action.goto_location(lat, lon, alt, current_heading)
             
             self.logger.info(f"GPS 이동: ({lat:.6f}, {lon:.6f}, {alt:.1f}m)")
             return True
@@ -628,7 +511,7 @@ class DroneController:
     async def _safety_check(self) -> bool:
         """안전 체크"""
         try:
-            status = await self.connection.get_status()
+            status = await self.get_status()
             
             # 배터리 체크
             if status.battery_percent < self.safety.min_battery:
@@ -650,6 +533,107 @@ class DroneController:
             
         except:
             return True  # 체크 실패 시 계속 진행
+    
+    async def get_telemetry(self) -> Dict[str, Any]:
+        """텔레메트리 데이터 수집 (캐시 사용)"""
+        current_time = time.time()
+        
+        # 캐시 확인
+        if self.telemetry_cache.get('timestamp', 0) + self.cache_timeout > current_time:
+            return self.telemetry_cache.get('data', {})
+        
+        telemetry = {}
+        
+        try:
+            # 위치
+            async for position in self.drone.telemetry.position():
+                telemetry['position'] = {
+                    'lat': position.latitude_deg,
+                    'lon': position.longitude_deg,
+                    'alt_abs': position.absolute_altitude_m,
+                    'alt_rel': position.relative_altitude_m
+                }
+                break
+            
+            # 속도
+            async for velocity in self.drone.telemetry.velocity_ned():
+                telemetry['velocity'] = {
+                    'north': velocity.north_m_s,
+                    'east': velocity.east_m_s,
+                    'down': velocity.down_m_s,
+                    'ground_speed': math.sqrt(velocity.north_m_s**2 + velocity.east_m_s**2)
+                }
+                break
+            
+            # 자세
+            async for attitude in self.drone.telemetry.attitude_euler():
+                telemetry['attitude'] = {
+                    'roll': attitude.roll_deg,
+                    'pitch': attitude.pitch_deg,
+                    'yaw': attitude.yaw_deg
+                }
+                break
+            
+            # 배터리
+            async for battery in self.drone.telemetry.battery():
+                telemetry['battery'] = {
+                    'voltage': battery.voltage_v,
+                    'current': battery.current_battery_a,
+                    'percent': battery.remaining_percent
+                }
+                break
+            
+            # GPS
+            async for gps in self.drone.telemetry.gps_info():
+                telemetry['gps'] = {
+                    'satellites': gps.num_satellites,
+                    'fix_type': gps.fix_type.value
+                }
+                break
+            
+            # 상태
+            async for armed in self.drone.telemetry.armed():
+                telemetry['armed'] = armed
+                break
+            
+            async for in_air in self.drone.telemetry.in_air():
+                telemetry['in_air'] = in_air
+                break
+            
+            async for mode in self.drone.telemetry.flight_mode():
+                telemetry['flight_mode'] = str(mode)
+                break
+            
+            # 캐시 업데이트
+            self.telemetry_cache = {
+                'timestamp': current_time,
+                'data': telemetry
+            }
+            
+        except Exception as e:
+            self.logger.error(f"텔레메트리 수집 오류: {e}")
+        
+        return telemetry
+    
+    async def get_status(self) -> FlightStatus:
+        """비행 상태 가져오기"""
+        status = FlightStatus()
+        
+        try:
+            telemetry = await self.get_telemetry()
+            
+            status.is_armed = telemetry.get('armed', False)
+            status.is_flying = telemetry.get('in_air', False)
+            status.mode = telemetry.get('flight_mode', 'UNKNOWN')
+            status.altitude = telemetry.get('position', {}).get('alt_rel', 0.0)
+            status.battery_percent = telemetry.get('battery', {}).get('percent', 0.0)
+            status.gps_satellites = telemetry.get('gps', {}).get('satellites', 0)
+            status.heading = telemetry.get('attitude', {}).get('yaw', 0.0)
+            
+        except:
+            pass
+        
+        return status
     
     async def stop(self) -> bool:
         """정지 (호버링)"""
