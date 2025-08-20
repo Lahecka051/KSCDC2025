@@ -1,12 +1,14 @@
 from ultralytics import YOLO
 import cv2
 import numpy as np
+import time
 from pipeline import gstreamer_pipeline
 
 class Object_Data:
-    def __init__(self, cap):
+    def __init__(self, cap, mode="upper"):
         self.model = YOLO("best.engine")
         self.cap = cap
+        self.mode = mode  # "upper" or "lower"
 
         self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -26,65 +28,89 @@ class Object_Data:
         elif x < self.w2: horizontal = "가운데"
         else: horizontal = "오른쪽"
 
-        if (vertical, horizontal) == ("위", "왼쪽"): return ["level", "forward_left", 0, 10]
-        if (vertical, horizontal) == ("위", "가운데"): return ["level", "forward", 0, 10]
-        if (vertical, horizontal) == ("위", "오른쪽"): return ["level", "forward_right", 0, 10]
-        if (vertical, horizontal) == ("가운데", "왼쪽"): return ["level", "left", 0, 10]
-        if (vertical, horizontal) == ("가운데", "가운데"): return ["level", "stop", 0, 10]
-        if (vertical, horizontal) == ("가운데", "오른쪽"): return ["level", "right", 0, 10]
-        if (vertical, horizontal) == ("아래", "왼쪽"): return ["level", "backward_left", 0, 10]
-        if (vertical, horizontal) == ("아래", "가운데"): return ["level", "backward", 0, 10]
-        if (vertical, horizontal) == ("아래", "오른쪽"): return ["level", "backward_right", 0, 10]
-        return None
+        mapping = {
+            ("위","왼쪽"): ["level", "forward_left", 0, 10],
+            ("위","가운데"): ["level", "forward", 0, 10],
+            ("위","오른쪽"): ["level", "forward_right", 0, 10],
+            ("가운데","왼쪽"): ["level", "left", 0, 10],
+            ("가운데","가운데"): ["level", "stop", 0, 10],
+            ("가운데","오른쪽"): ["level", "right", 0, 10],
+            ("아래","왼쪽"): ["level", "backward_left", 0, 10],
+            ("아래","가운데"): ["level", "backward", 0, 10],
+            ("아래","오른쪽"): ["level", "backward_right", 0, 10]
+        }
+        return mapping.get((vertical, horizontal), None)
 
-    def detect_fire(self):
-        """PatrolManager에서 호출할 단일 프레임 화재 탐지"""
+    # ------------------------
+    # 전방 카메라 단일 프레임 탐지
+    # ------------------------
+    def detect_fire_upper(self):
+        if self.mode != "upper":
+            raise ValueError("이 메서드는 전방 카메라용입니다 (mode='upper').")
         ret, frame = self.cap.read()
         if not ret:
-            print("프레임 읽기 실패")
             return False, None, None
 
         results = self.model.predict(frame, imgsz=640, conf=0.4, verbose=False)
-
         if len(results[0].boxes) > 0:
             best_box = max(results[0].boxes, key=lambda box: box.conf[0])
             class_name = self.class_names[int(best_box.cls[0])]
             x1, y1, x2, y2 = best_box.xyxy[0]
-            center_x = int((x1 + x2) / 2)
-            center_y = int((y1 + y2) / 2)
-
+            center_x = int((x1 + x2)/2)
+            center_y = int((y1 + y2)/2)
             if class_name.lower() in ["fire", "flame"]:
-                image_path = "detected_fire.jpg"
-                cv2.imwrite(image_path, frame)
-                command = self.get_position_command(center_x, center_y)
-                print("화재 탐지됨, 이미지 저장 완료, 방향:", command)
-                return True, image_path, command
-
+                return True, (center_x, center_y), frame
         return False, None, None
 
-    def run_OD(self):
-        while True:
+    # ------------------------
+    # 하부 카메라 중앙 정렬 후 촬영
+    # ------------------------
+    def detect_and_align_fire(self, timeout=5):
+        if self.mode != "lower":
+            raise ValueError("이 메서드는 하부 카메라용입니다 (mode='lower').")
+        start_time = time.time()
+        while time.time() - start_time < timeout:
             ret, frame = self.cap.read()
             if not ret:
-                print("카메라 프레임 읽기 실패")
-                break
-
+                continue
             results = self.model.predict(frame, imgsz=640, conf=0.4, verbose=False)
-            annotated_frame = results[0].plot()
-
             if len(results[0].boxes) > 0:
                 best_box = max(results[0].boxes, key=lambda box: box.conf[0])
                 class_name = self.class_names[int(best_box.cls[0])]
                 x1, y1, x2, y2 = best_box.xyxy[0]
-                center_x = int((x1 + x2) / 2)
-                center_y = int((y1 + y2) / 2)
+                center_x = int((x1 + x2)/2)
+                center_y = int((y1 + y2)/2)
+                command = self.get_position_command(center_x, center_y)
+                if command:
+                    print(f"하부 카메라 정렬 → {class_name} 위치: {command}")
+                # 중앙 정렬 목표: (가운데) → stop
+                if command and command[1] == "stop":
+                    image_path = "lower_captured_fire.jpg"
+                    cv2.imwrite(image_path, frame)
+                    return image_path
+        return None
+
+    # ------------------------
+    # 기존 OD 루프
+    # ------------------------
+    def run_OD(self):
+        while True:
+            ret, frame = self.cap.read()
+            if not ret:
+                break
+            results = self.model.predict(frame, imgsz=640, conf=0.4, verbose=False)
+            annotated_frame = results[0].plot()
+            if len(results[0].boxes) > 0:
+                best_box = max(results[0].boxes, key=lambda box: box.conf[0])
+                class_name = self.class_names[int(best_box.cls[0])]
+                x1, y1, x2, y2 = best_box.xyxy[0]
+                center_x = int((x1 + x2)/2)
+                center_y = int((y1 + y2)/2)
                 command = self.get_position_command(center_x, center_y)
                 if command:
                     print(f"→ {class_name} (conf: {best_box.conf[0]:.2f}): {command}")
-
-            cv2.imshow("YOLOv8 Detection (Optimized)", annotated_frame)
+            cv2.imshow("YOLOv8 Detection", annotated_frame)
             if cv2.waitKey(1) & 0xFF == 27:
                 break
-
         self.cap.release()
         cv2.destroyAllWindows()
