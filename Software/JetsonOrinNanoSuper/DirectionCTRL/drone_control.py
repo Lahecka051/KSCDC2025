@@ -2,6 +2,9 @@
 drone_control.py - FC 직접 연결 버전
 H743v2 FC와 Jetson이 /dev/ttyTHS1:115200으로 직접 연결
 MAVSDK를 통한 MAVLink 통신
+
+이 파일을 직접 실행하면 GPS 데이터 수신을 테스트할 수 있습니다.
+$ python3 drone_control.py
 """
 
 import asyncio
@@ -197,8 +200,8 @@ class DroneController:
         try:
             # 배터리 체크
             async for battery in self.drone.telemetry.battery():
-                if battery.remaining_percent < 30:
-                    self.logger.warning(f"배터리 부족: {battery.remaining_percent}%")
+                if battery.remaining_percent < 0.3: # 30% 미만
+                    self.logger.warning(f"배터리 부족: {battery.remaining_percent * 100:.1f}%")
                     return False
                 break
             
@@ -514,8 +517,8 @@ class DroneController:
             status = await self.get_status()
             
             # 배터리 체크
-            if status.battery_percent < self.safety.min_battery:
-                self.logger.warning(f"배터리 부족: {status.battery_percent}%")
+            if status.battery_percent < self.safety.min_battery / 100.0:
+                self.logger.warning(f"배터리 부족: {status.battery_percent * 100:.1f}%")
                 if self.emergency_callback:
                     await self.emergency_callback("low_battery")
                 return False
@@ -587,7 +590,7 @@ class DroneController:
             async for gps in self.drone.telemetry.gps_info():
                 telemetry['gps'] = {
                     'satellites': gps.num_satellites,
-                    'fix_type': gps.fix_type.value
+                    'fix_type': str(gps.fix_type)
                 }
                 break
             
@@ -689,3 +692,55 @@ class DroneController:
     def set_emergency_callback(self, callback: Callable):
         """긴급 상황 콜백 설정"""
         self.emergency_callback = callback
+
+
+# ==============================================================================
+# 이 파일을 직접 실행할 경우 GPS 데이터 수신을 테스트하는 부분입니다.
+# ==============================================================================
+if __name__ == "__main__":
+
+    async def run_gps_check():
+        """
+        드론에 연결하여 GPS 텔레메트리를 주기적으로 출력하는 메인 함수
+        """
+        # --- 설정 ---
+        FC_SERIAL_PORT = "/dev/ttyTHS1"  # GPS 데이터가 포함된 MAVLink가 수신되는 포트
+        SERIAL_BAUDRATE = 115200
+        
+        logger = logging.getLogger("GPS_Check")
+        controller = DroneController(
+            connection_string=f"serial://{FC_SERIAL_PORT}:{SERIAL_BAUDRATE}"
+        )
+
+        logger.info("드론 연결 시도...")
+        if not await controller.connect():
+            logger.error("드론 연결에 실패했습니다. 프로그램을 종료합니다.")
+            return
+
+        logger.info("연결 성공. 1초마다 GPS 데이터를 출력합니다.")
+        logger.info("종료하려면 Ctrl+C를 누르세요.")
+
+        try:
+            while True:
+                # 드론으로부터 최신 상태와 텔레메트리 데이터를 가져옵니다.
+                status = await controller.get_status()
+                telemetry = await controller.get_telemetry()
+                
+                position_data = telemetry.get('position', {})
+                latitude = position_data.get('lat', 'N/A')
+                longitude = position_data.get('lon', 'N/A')
+
+                # 수신된 GPS 정보를 터미널에 출력합니다.
+                print(f"GPS 상태: 위성 {status.gps_satellites}개 | "
+                      f"위도: {latitude} | 경도: {longitude}")
+                
+                await asyncio.sleep(1)
+                
+        except KeyboardInterrupt:
+            logger.info("프로그램 종료 요청을 받았습니다.")
+        finally:
+            logger.info("드론 연결을 해제합니다.")
+            await controller.disconnect()
+
+    # 비동기 함수 실행
+    asyncio.run(run_gps_check())
