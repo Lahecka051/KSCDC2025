@@ -110,4 +110,50 @@ def run_extinguish_mission(target_coords):
     print("\n--- 화재 진압 임무 수신 ---")
     lat, lon = target_coords['lat'], target_coords['lon']
     
-    print
+    print(f"목표 지점({lat:.4f}, {lon:.4f})으로 출동합니다...")
+    time.sleep(7)
+    
+    print("목표 지점 상공 도착. 소화볼 투척 준비...")
+    time.sleep(2)
+    
+    print("!!! 소화볼 투척 완료 !!!")
+    
+    print("임무 완료. 스테이션으로 복귀합니다.")
+    time.sleep(7)
+    
+    print("스테이션 착륙 완료. 임무 대기 모드로 전환합니다.")
+    send_status_update("EXTINGUISH_COMPLETE")
+    
+    print("\n--- 진압 임무 절차 완료 ---")
+
+# --- 메인 로직: PC로부터 명령 수신 대기 ---
+def main():
+    host = '0.0.0.0'; port = 3999
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((host, port)); s.listen()
+        print(f"Jetson 임무 대기 중... (Port: {port})")
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                print(f"\nPC({addr})로부터 연결됨. 명령 수신 중...")
+                data = conn.recv(4096)
+                if data:
+                    try:
+                        command_data = json.loads(data.decode('utf-8'))
+                        
+                        if isinstance(command_data, dict) and command_data.get('type') == 'EXTINGUISH':
+                            target = command_data.get('target')
+                            mission_thread = threading.Thread(target=run_extinguish_mission, args=(target,), daemon=True)
+                            mission_thread.start()
+                        elif isinstance(command_data, list):
+                            mission_thread = threading.Thread(target=run_mission, args=(command_data,), daemon=True)
+                            mission_thread.start()
+                        else:
+                            print(f"알 수 없는 형식의 명령 수신: {command_data}")
+
+                    except Exception as e:
+                        print(f"명령 처리 중 오류 발생: {e}")
+
+if __name__ == '__main__':
+    main()
