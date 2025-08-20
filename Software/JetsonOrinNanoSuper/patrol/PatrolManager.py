@@ -2,10 +2,12 @@
 import time
 import socket
 import threading
-from Object_Data import Object_Data
-from Landing import Landing
 import cv2
 import os
+import json
+from Object_Data import Object_Data
+from Landing import Landing
+
 
 class PatrolManager:
     def __init__(self, upper_cam_index=0, lower_cam_index=1, marker_path="/home/kscdc2025/Marker.png"):
