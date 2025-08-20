@@ -19,7 +19,7 @@ from datetime import datetime
 import numpy as np
 
 # 모듈 임포트
-from communication import UARTCommunication, MessageType
+from drone_communication import UARTCommunication, MessageType
 from drone_control import DroneConnection, DroneController, ControlMode, FlightStatus, SafetyLimits
 
 # 로깅 설정
