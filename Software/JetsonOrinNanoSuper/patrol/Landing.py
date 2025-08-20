@@ -84,6 +84,7 @@ class Landing:
             if position in outer_cmds:
                 self.cmd = outer_cmds[position]
             elif position == 5:
+                # 중앙 세부 그리드
                 center_x_start = self.step_x
                 center_y_start = self.step_y
                 center_w = self.step_x
@@ -113,7 +114,21 @@ class Landing:
 
         return self.cmd, self.marker_center, self.frame.copy()
 
+    # ------------------------
+    # 드론 제어 명령 전송 (예시, 실제 SDK 적용 필요)
+    # ------------------------
+    def send_drone_command(self, cmd):
+        if cmd is None:
+            return
+        # 여기서 실제 드론 SDK 호출, PWM 또는 좌표 명령 전송
+        # 예: drone.send_movement(cmd)
+        print(f"[DRONE CMD] {cmd}")
+
+    # ------------------------
+    # 중앙 정렬 후 착륙 수행
+    # ------------------------
     def run(self):
+        aligned_center_count = 0
         while True:
             ret, frame = self.cap.read()
             if not ret:
@@ -121,11 +136,26 @@ class Landing:
 
             cmd, marker_center, debug_frame = self.process_frame(frame)
 
+            # 드론 제어 명령 전송
+            self.send_drone_command(cmd)
+
+            # 중앙 정렬 체크
+            if cmd and cmd[1] == "stop":
+                aligned_center_count += 1
+            else:
+                aligned_center_count = 0
+
+            # 3초 이상 중앙 정렬 유지 시 착륙
+            if aligned_center_count >= 6:  # 0.5초 * 6 = 3초
+                print("[LANDING] 중앙 정렬 완료. 착륙 시작!")
+                self.send_drone_command(["land"])
+                break
+
+            # 디버그 화면 출력
             now = time.time()
             if now - self.last_print_time > 0.5:
                 self.last_print_time = now
-
-            cv2.imshow("Landing Detection", debug_frame)
+                cv2.imshow("Landing Detection", debug_frame)
 
             if cv2.waitKey(1) & 0xFF == 27:
                 break
