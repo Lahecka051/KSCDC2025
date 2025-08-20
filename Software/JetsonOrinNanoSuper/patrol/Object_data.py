@@ -59,16 +59,21 @@ class Object_Data:
             center_x = int((x1 + x2)/2)
             center_y = int((y1 + y2)/2)
             if class_name.lower() in ["fire", "flame"]:
+                image_path = "upper_detected_fire.jpg"
+                cv2.imwrite(image_path, frame)
+                command = self.get_position_command(center_x, center_y)
+                print(f"전방 화재 탐지 → {class_name}, 중앙 좌표: {center_x},{center_y}, 명령: {command}")
                 return True, (center_x, center_y), frame
         return False, None, None
 
     # ------------------------
     # 하부 카메라 중앙 정렬 후 촬영
     # ------------------------
-    def detect_and_align_fire(self, timeout=5):
+    def detect_and_align_fire(self, drone_send_command=None, timeout=5):
         if self.mode != "lower":
             raise ValueError("이 메서드는 하부 카메라용입니다 (mode='lower').")
         start_time = time.time()
+        captured_path = None
         while time.time() - start_time < timeout:
             ret, frame = self.cap.read()
             if not ret:
@@ -83,12 +88,13 @@ class Object_Data:
                 command = self.get_position_command(center_x, center_y)
                 if command:
                     print(f"하부 카메라 정렬 → {class_name} 위치: {command}")
-                # 중앙 정렬 목표: (가운데) → stop
-                if command and command[1] == "stop":
-                    image_path = "lower_captured_fire.jpg"
-                    cv2.imwrite(image_path, frame)
-                    return image_path
-        return None
+                    if drone_send_command:
+                        drone_send_command(command)
+                    if command[1] == "stop":
+                        captured_path = "lower_captured_fire.jpg"
+                        cv2.imwrite(captured_path, frame)
+                        break
+        return captured_path
 
     # ------------------------
     # 기존 OD 루프
