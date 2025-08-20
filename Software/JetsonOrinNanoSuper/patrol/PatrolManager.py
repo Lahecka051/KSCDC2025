@@ -27,7 +27,13 @@ class PatrolManager:
             with conn:
                 print(f"[DRONE] 관제 센터 연결됨: {addr}")
                 data = conn.recv(4096).decode("utf-8")
-                waypoints = json.loads(data)["waypoints"]  # {"waypoints":[[lat,lon],...]}
+                raw_data = json.loads(data)
+                if isinstance(raw_data, dict) and "waypoints" in raw_data:
+                    waypoints = raw_data["waypoints"]
+                elif isinstance(raw_data, list):
+                    waypoints = [(item["lat"], item["lon"]) for item in raw_data]
+                else:
+                    waypoints = []
         return waypoints
 
     def patrol_loop(self, mission_waypoints):
