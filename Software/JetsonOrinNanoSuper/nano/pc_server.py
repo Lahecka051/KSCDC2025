@@ -60,7 +60,7 @@ class App:
         # 3. 드론 연결 및 임무 프레임
         self.mission_run_frame = tkinter.LabelFrame(self.control_frame, text="임무")
         self.mission_run_frame.pack(side="left", padx=10, pady=5, fill="y")
-        tkinter.Label(self.mission_run_frame, text="드론 IP:").pack(side="left", padx=5)
+        tkinter.Label(self.mission_run_frame, text="드론 주소소:").pack(side="left", padx=5)
         self.drone_ip_entry = tkinter.Entry(self.mission_run_frame)
         self.drone_ip_entry.pack(side="left", padx=5)
         self.start_button = tkinter.Button(self.mission_run_frame, text="순찰 시작", bg="lightblue", command=self.start_patrol)
@@ -189,7 +189,9 @@ class App:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((host, port)); s.listen()
-            print(f"보고 수신 대기 중... IP: {socket.gethostbyname(socket.gethostname())}, Port: {port}")
+            
+            pc_hostname = socket.gethostname()
+            print(f"보고 수신 대기 중... PC 이름: {pc_hostname}.local, Port: {port}")
             while True:
                 conn, addr = s.accept()
                 client_thread = threading.Thread(target=self.handle_fire_report, args=(conn, addr), daemon=True)
@@ -199,3 +201,4 @@ if __name__ == "__main__":
     root = tkinter.Tk()
     app = App(root)
     root.mainloop()
+
