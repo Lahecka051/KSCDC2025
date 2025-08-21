@@ -14,6 +14,7 @@ class Object_Data:
         self.h1, self.h2 = self.frame_height // 3, 2 * self.frame_height // 3
         self.class_names = self.model.names
 
+   
     def get_position_command(self, x, y):
         if y < self.h1: vertical = "위"
         elif y < self.h2: vertical = "가운데"
