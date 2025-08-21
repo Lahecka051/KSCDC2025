@@ -500,56 +500,11 @@ def main():
         print("\n이륙 (2m)...")
         drone.takeoff(2.0)
         
-        # 방향 제어 테스트
-        print("\n=== 4가지 데이터 제어 테스트 ===")
-        
-        # 전진
-        print("전진 (L1=level, L2=forward, L3=0, L4=50)...")
-        drone.set_command("level", "forward", 0, 50)
-        time.sleep(3)
-        
-        # 우전방 대각선
-        print("우전방 (L1=level, L2=forward_right, L3=0, L4=50)...")
-        drone.set_command("level", "forward_right", 0, 50)
-        time.sleep(3)
-        
-        # 회전
-        print("90도 회전 (L1=level, L2=hover, L3=90, L4=0)...")
-        drone.set_command("level", "hover", 90, 0)
-        time.sleep(3)
-        
-        # 상승하며 전진
-        print("상승+전진 (L1=up, L2=forward, L3=0, L4=60)...")
-        drone.set_command("up", "forward", 0, 60)
-        time.sleep(3)
-        
         # 호버링
         print("호버링...")
         drone.hover()
         time.sleep(3)
-        
-        # GPS 이동 테스트
-        print("\n=== GPS 이동 테스트 ===")
-        # 10m 앞 GPS 좌표 계산 (예시)
-        current_lat = drone.vehicle.location.global_frame.lat
-        current_lon = drone.vehicle.location.global_frame.lon
-        target_lat = current_lat + 0.00009  # 약 10m 북쪽
-        target_lon = current_lon
-        
-        print(f"GPS 이동: ({target_lat:.6f}, {target_lon:.6f})")
-        drone.goto_gps(target_lat, target_lon)
-        
-        # GPS 이동 완료 대기
-        while drone.gps_navigation_active:
-            status = drone.get_status()
-            print(f"GPS Nav: {status['gps']} → {status['target']}")
-            time.sleep(2)
-        
-        # 홈 복귀
-        print("\n홈 복귀...")
-        drone.goto_home()
-        time.sleep(10)
-        
+      
         # 착륙
         print("\n착륙...")
         drone.land()
