@@ -16,6 +16,11 @@ CONTROLLER_PC_HOSTNAME = 'Your-PC-Name.local'
 # --- 통신 모듈 객체 생성 ---
 communicator = DroneCommunicator(pc_hostname=CONTROLLER_PC_HOSTNAME)
 
+# --- 카메라 객체 생성 ----
+pipeline0 = gstreamer_pipeline(sensor_id=0)
+pipeline1 = gstreamer_pipeline(sensor_id=1)
+cap0 = cv2.VideoCapture(pipeline0, cv2.CAP_GSTREAMER)
+cap1 = cv2.VideoCapture(pipeline1, cv2.CAP_GSTREAMER)
 
 # --- 메인 로직: PC로부터 명령 수신 대기 ---
 def main():
@@ -48,3 +53,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
