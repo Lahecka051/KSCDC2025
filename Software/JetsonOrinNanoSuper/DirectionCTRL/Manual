@@ -1,0 +1,206 @@
+GPS 이동 기능 메뉴얼
+📍 GPS 이동 기능 개요
+python"""
+GPS 이동 기능 상세 메뉴얼
+ArduPilot GUIDED 모드를 사용한 자율 비행
+"""
+1. GPS 이동 기본 구조
+python# GPS 이동 함수 호출 방법
+drone.goto_gps(latitude=37.123456, longitude=127.123456, altitude=10)
+
+# 매개변수 설명:
+# - latitude: 목표 위도 (소수점 6자리)
+# - longitude: 목표 경도 (소수점 6자리)  
+# - altitude: 목표 고도 (미터, None이면 현재 고도 유지)
+2. 동작 원리
+pythondef goto_gps(self, latitude: float, longitude: float, altitude: Optional[float] = None):
+    """
+    GPS 이동 동작 순서:
+    
+    1. 시동 상태 확인
+    2. 호버링 상태 해제 (일반 제어 중지)
+    3. 기존 GPS 이동 취소 (있을 경우)
+    4. 새로운 GPS 네비게이션 스레드 시작
+    5. GUIDED 모드로 전환
+    6. 목표 좌표 전송 (1초마다 반복)
+    """
+    
+    # 실제 코드 동작
+    if not self.is_armed:
+        return False  # 시동 안걸림
+    
+    self.is_hovering = False  # 호버링 중지
+    self.gps_active = True     # GPS 모드 활성화
+    
+    # 백그라운드 스레드에서 실행
+    self.gps_thread = threading.Thread(
+        target=self._gps_navigation,
+        args=(latitude, longitude, altitude)
+    )
+    self.gps_thread.start()
+3. ArduPilot 비행 모드
+python"""
+ArduPilot 주요 비행 모드:
+
+0 = STABILIZE  : 수동 조종, GPS 불필요 (실내 비행)
+2 = ALT_HOLD   : 고도 유지
+3 = AUTO       : 미션 자동 수행
+4 = GUIDED     : 외부 명령으로 이동 (GPS 필요) ← GPS 이동시 사용
+5 = LOITER     : 현재 위치 유지 (GPS 필요)
+6 = RTL        : Return To Launch
+9 = LAND       : 자동 착륙
+"""
+
+# GPS 이동시 GUIDED 모드로 전환
+self.master.mav.set_mode_send(
+    self.master.target_system,
+    mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+    4  # GUIDED = 4
+)
+4. MAVLink 메시지 구조
+python# GPS 목표 위치 전송 메시지
+self.master.mav.set_position_target_global_int_send(
+    0,                          # time_boot_ms (사용 안함)
+    self.master.target_system,  # 대상 시스템 ID
+    self.master.target_component, # 대상 컴포넌트 ID
+    mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, # 좌표계
+    0b0000111111111000,        # type_mask (위치만 사용)
+    int(latitude * 1e7),       # 위도 (정수로 변환)
+    int(longitude * 1e7),      # 경도 (정수로 변환)
+    altitude,                  # 고도 (미터)
+    0, 0, 0,                  # 속도 x,y,z (사용 안함)
+    0, 0, 0,                  # 가속도 x,y,z (사용 안함)
+    0, 0                      # yaw, yaw_rate (사용 안함)
+)
+5. 실제 사용 예제
+python# ========== 완전한 GPS 이동 예제 ==========
+
+import time
+
+def gps_mission_example():
+    # 1. 드론 연결 및 시동
+    drone = ArduPilotDroneController('/dev/ttyTHS1', 115200)
+    drone.connect()
+    drone.arm()
+    
+    # 2. 이륙 (10m)
+    print("이륙 중...")
+    drone.set_command("up", "hover", 0, 90)
+    time.sleep(10)
+    
+    # 3. 호버링
+    drone.set_command("level", "hover", 0, 70)
+    time.sleep(2)
+    
+    # 4. GPS 웨이포인트 이동
+    waypoints = [
+        (37.123456, 127.123456, 10),  # 지점 1
+        (37.123500, 127.123500, 15),  # 지점 2 (고도 상승)
+        (37.123456, 127.123600, 10),  # 지점 3 (고도 하강)
+    ]
+    
+    for i, (lat, lon, alt) in enumerate(waypoints, 1):
+        print(f"\n웨이포인트 {i}로 이동 중...")
+        drone.goto_gps(lat, lon, alt)
+        
+        # 도착 대기 (실제로는 도착 확인 로직 필요)
+        time.sleep(20)
+        
+        # 도착 후 잠시 호버링
+        drone.brake()
+        time.sleep(3)
+    
+    # 5. 홈으로 복귀 (RTL 대신 GPS 이동)
+    print("\n홈으로 복귀...")
+    home_lat = 37.123400
+    home_lon = 127.123400
+    drone.goto_gps(home_lat, home_lon, 5)
+    time.sleep(20)
+    
+    # 6. 착륙
+    print("착륙 중...")
+    drone.set_command("down", "hover", 0, 60)
+    time.sleep(10)
+    
+    # 7. 시동 끄기
+    drone.disarm()
+    drone.close()
+6. GPS 이동 중 제어
+python# GPS 이동 중 다른 명령으로 중단 가능
+drone.goto_gps(37.123456, 127.123456, 10)  # GPS 이동 시작
+time.sleep(5)
+
+# 방법 1: 일반 명령으로 중단
+drone.set_command("level", "forward", 0, 70)  # GPS 중단, 수동 전진
+
+# 방법 2: 브레이크로 중단
+drone.brake()  # GPS 중단, 현재 위치 호버링
+
+# 방법 3: 새로운 GPS 목표로 변경
+drone.goto_gps(37.124000, 127.124000, 10)  # 새 목표로 변경
+7. GPS 이동 조건 및 제한사항
+markdown✅ GPS 이동 가능 조건:
+- GPS 모듈 연결 (실외)
+- GPS Fix 상태 (위성 4개 이상)
+- 시동 걸린 상태
+- GUIDED 모드 지원
+
+❌ GPS 이동 불가능한 경우:
+- 실내 (GPS 신호 없음)
+- GPS_TYPE = 0 설정시 (실내 모드)
+- 시동 안걸림
+- 배터리 부족
+
+⚠️ 주의사항:
+- 실내에서는 작동 안함
+- GPS 정확도에 따라 위치 오차 발생
+- 장애물 회피 기능 없음
+- 목표 도착 판단은 FC가 자동으로 함
+8. GPS 상태 확인 (추가 가능)
+pythondef check_gps_status(self):
+    """GPS 상태 확인 함수 (필요시 추가)"""
+    
+    # GPS 상태 요청
+    self.master.mav.command_long_send(
+        self.master.target_system,
+        self.master.target_component,
+        mavutil.mavlink.MAV_CMD_REQUEST_MESSAGE,
+        0,
+        24,  # GPS_RAW_INT 메시지 ID
+        0, 0, 0, 0, 0, 0
+    )
+    
+    # GPS 데이터 수신
+    msg = self.master.recv_match(type='GPS_RAW_INT', blocking=True, timeout=1)
+    
+    if msg:
+        print(f"GPS 상태:")
+        print(f"  - Fix Type: {msg.fix_type}")  # 0=no GPS, 2=2D, 3=3D
+        print(f"  - 위성 수: {msg.satellites_visible}")
+        print(f"  - 위도: {msg.lat / 1e7}")
+        print(f"  - 경도: {msg.lon / 1e7}")
+        print(f"  - 고도: {msg.alt / 1000}m")
+        return msg.fix_type >= 2  # 2D Fix 이상이면 True
+    
+    return False
+9. 문제 해결 가이드
+python"""
+Q: GPS 이동이 안돼요
+A: 1. 실외인지 확인
+   2. GPS 모듈 연결 확인
+   3. GPS_TYPE 파라미터가 0이 아닌지 확인
+   4. GPS Fix 상태 확인 (위성 4개 이상)
+
+Q: GPS 이동 중 멈춰요
+A: 1. drone.brake() 호출
+   2. drone.set_command()로 수동 제어 전환
+
+Q: 목표 지점에 정확히 도착 안해요
+A: GPS 오차 (일반적으로 2-5m)는 정상
+   더 정확한 위치는 RTK GPS 필요
+
+Q: 실내에서 GPS 이동 테스트하려면?
+A: 1. GPS 시뮬레이터 사용 (SITL)
+   2. 가상 GPS 데이터 주입
+   3. Mission Planner의 시뮬레이션 모드
+"""
