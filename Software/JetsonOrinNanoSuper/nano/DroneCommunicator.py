@@ -55,3 +55,18 @@ class DroneCommunicator:
                 print(f"[통신 모듈] 상태 보고 전송 성공: {status_message}")
         except Exception as e:
             print(f"[통신 모듈][오류] PC로 상태 보고 전송 실패: {e}")
+
+    def setting(self):
+        host = '0.0.0.0'; port = 3999
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.s:
+            self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.s.bind((host, port)); s.listen()
+            print(f"Jetson 임무 대기 중... (Port: {port})")
+
+    def receive_data():
+        conn, addr = self.s.accept()
+            with conn:
+                print(f"\nPC({addr})로부터 연결됨. 명령 수신 중...")
+                data = conn.recv(4096)
+                return data
+
