@@ -5,15 +5,15 @@ import time
 import json
 import os
 
-# 사용자가 만든 코드
+# 사용자가 만든 모듈
 from drone_communications import DroneCommunicator
-
-
-# --- 설정 변수 ---
-# ❗️❗️❗️PC의 실제 이름으로 반드시 변경해주세요❗️❗️❗️
-CONTROLLER_PC_HOSTNAME = 'Your-PC-Name.local' 
+from patrol import patrol
+from Object_data import Object_Data
+from Landing import Landing
 
 # --- 통신 모듈 객체 생성 ---
+# ❗️❗️❗️PC의 실제 이름으로 반드시 변경해주세요❗️❗️❗️
+CONTROLLER_PC_HOSTNAME = 'Your-PC-Name.local' 
 communicator = DroneCommunicator(pc_hostname=CONTROLLER_PC_HOSTNAME)
 
 # --- 카메라 객체 생성 ----
@@ -21,6 +21,17 @@ pipeline0 = gstreamer_pipeline(sensor_id=0)
 pipeline1 = gstreamer_pipeline(sensor_id=1)
 cap0 = cv2.VideoCapture(pipeline0, cv2.CAP_GSTREAMER)
 cap1 = cv2.VideoCapture(pipeline1, cv2.CAP_GSTREAMER)
+
+# --- 객체탐지 객체 생성 ---
+object_dector = Object_Data(cap0,cap1)
+
+# --- 착륙 시스템 객체 생성 ---
+#Landing(cap, drone_system: IntegratedDroneSystem, marker_path="/home/kscdc2025/Marker.png")
+landing = Landing(cap1, drone_system)
+
+# --- 순찰 객체 생성 ---
+#Patrol(drone_system: IntegratedDroneSystem, object_detector, landing, communicator)
+patrol = Patrol(drone_system: IntegratedDroneSystem, object_detector, landing, communicator)
 
 # --- 메인 로직: PC로부터 명령 수신 대기 ---
 def main():
@@ -53,4 +64,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
