@@ -36,7 +36,7 @@ class PatrolManager:
                     waypoints = []
         return waypoints
 
-    def patrol_loop(self, mission_waypoints):
+    def run_mission(self, mission_waypoints):
         for lat, lon in mission_waypoints:
             print(f"[DRONE] 좌표 {lat},{lon} 이동")
             time.sleep(1)  # 실제 드론 이동 명령 대신 대기
@@ -86,4 +86,4 @@ class PatrolManager:
 if __name__ == "__main__":
     pm = PatrolManager()
     mission = pm.receive_waypoints()
-    pm.patrol_loop(mission)
+    pm.run_mission(mission)
