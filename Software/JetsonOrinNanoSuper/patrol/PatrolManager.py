@@ -37,7 +37,7 @@ class PatrolManager:
                     waypoints = [(item["lat"], item["lon"]) for item in raw_data]
         return waypoints
 
-    def run_mission(self, mission_waypoints):
+    def run(self, mission_waypoints):
         fire_found = False
         current_yaw = 0.0
         
@@ -207,6 +207,6 @@ if __name__ == "__main__":
     pm = PatrolManager(drone_controller) 
     mission = pm.receive_waypoints()
     if mission:
-        pm.run_mission(mission)
+        pm.run(mission)
     else:
         print("[DRONE] 수신된 웨이포인트가 없습니다. 임무를 시작할 수 없습니다.")
