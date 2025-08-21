@@ -35,7 +35,7 @@ patrol = Patrol(drone_system: IntegratedDroneSystem, object_detector, landing, c
 
 # --- 메인 로직: PC로부터 명령 수신 대기 ---
 def main():
-    communicator.setting()
+    communicator.start_receiver()
         while True:
             data = communicator.receive_data()
             if data:
@@ -57,6 +57,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
