@@ -36,32 +36,37 @@ class Fire_detect:
         return mapping.get((vertical,horizontal),None)
 
      # 화재 지점 GPS 추정 함수
-    def fire_gps(self, drone_gps, center_x, center_y)
+    def fire_gps(self, drone_gps, center_x, center_y):               
+      # 화재 지점의 각도 계산 (가정: 카메라 시야각 90도, 프레임 중심에서 픽셀당 각도 계산)
+      frame_center_x, frame_center_y = self.frame_width // 2, self.frame_height // 2
+      pixels_per_degree = self.frame_width / 90.0
+      angle_x = (center_x - frame_center_x) / pixels_per_degree
+      angle_y = (center_y - frame_center_y) / pixels_per_degree
         # 이 함수는 드론의 현재 GPS, Yaw, 피치, 롤, 고도, 그리고 카메라 시야각을
         # 기반으로 지상의 화재 지점 GPS를 추정합니다.
         # 실제 구현은 복잡하며, 여기서는 단순화된 가정을 사용합니다.
         
         # 가정: angle_x는 좌우 회전각, angle_y는 상하 기울기각 (피치)
         # GPS 이동은 단순화된 GPS 좌표계에서 계산됩니다.
-        earth_radius = 6371000  # 지구 반지름 (미터)
+      earth_radius = 6371000  # 지구 반지름 (미터)
         
         # 각도를 라디안으로 변환
-        angle_x_rad = math.radians(angle_x)
-        angle_y_rad = math.radians(angle_y)
-        heading_rad = math.radians(drone_gps.heading)
+      angle_x_rad = math.radians(angle_x)
+      angle_y_rad = math.radians(angle_y)
+      heading_rad = math.radians(drone_gps.heading)
         
         # 고도와 각도를 이용해 지상과의 수평 거리 계산
         # 드론 자세(피치, 롤)를 고려해야 하지만, 여기서는 단순화를 위해 생략
-        horizontal_distance = drone_gps.altitude * math.tan(angle_y_rad)
+      horizontal_distance = drone_gps.altitude * math.tan(angle_y_rad)
         
-        # 새로운 GPS 좌표 계산 (간단한 평면 지구 모델 가정)
-        delta_lat = (horizontal_distance * math.cos(heading_rad + angle_x_rad)) / earth_radius
-        delta_lon = (horizontal_distance * math.sin(heading_rad + angle_x_rad)) / (earth_radius * math.cos(math.radians(drone_gps.latitude)))
+      # 새로운 GPS 좌표 계산 (간단한 평면 지구 모델 가정)
+      delta_lat = (horizontal_distance * math.cos(heading_rad + angle_x_rad)) / earth_radius
+      delta_lon = (horizontal_distance * math.sin(heading_rad + angle_x_rad)) / (earth_radius * math.cos(math.radians(drone_gps.latitude)))
         
-        estimated_lat = drone_gps.latitude + math.degrees(delta_lat)
-        estimated_lon = drone_gps.longitude + math.degrees(delta_lon)
+      estimated_lat = drone_gps.latitude + math.degrees(delta_lat)
+      estimated_lon = drone_gps.longitude + math.degrees(delta_lon)
 
-        return (estimated_lat, estimated_lon)
+      return (estimated_lat, estimated_lon)
 
     def detect_fire_upper(self,drone_gps):
       ret, frame = self.cap0.read()
