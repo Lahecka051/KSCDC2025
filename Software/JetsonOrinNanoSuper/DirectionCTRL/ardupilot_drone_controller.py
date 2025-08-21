@@ -1,7 +1,7 @@
 """
 ardupilot_drone_controller.py
 ArduPilot (FC H743v2) 전용 드론 제어 시스템
-Jetson Orin Nano -> UART -> FC H743v2 (ArduPilot)
+쓰로틀 값 조정: 90%(상승), 70%(호버링), 60%(하강)
 """
 
 from pymavlink import mavutil
@@ -26,15 +26,25 @@ class ArduPilotDroneController:
         self.baudrate = baudrate
         
         # 현재 명령
-        self.current_command = ["level", "hover", 0, 0]
+        self.current_command = ["level", "hover", 0, 70]  # 기본 호버링 70%
         self.is_armed = False
+        self.is_hovering = False  # 호버링 상태 플래그
         self.control_thread = None
         self.running = False
         
-        # 쓰로틀 설정 (ArduPilot PWM)
-        self.THROTTLE_TAKEOFF = 1700  # 90%
-        self.THROTTLE_HOVER = 1500    # 60%
-        self.THROTTLE_LAND = 1400      # 50%
+        # 쓰로틀 3단계 설정 (ArduPilot PWM)
+        # 90% = 1700 PWM (상승/이륙)
+        # 70% = 1600 PWM (호버링/이동)
+        # 60% = 1500 PWM (하강/착륙)
+        self.THROTTLE_MAP = {
+            60: 1500,   # 하강/착륙
+            70: 1600,   # 호버링/이동
+            90: 1700    # 상승/이륙
+        }
+        
+        # GPS 관련
+        self.gps_thread = None
+        self.gps_active = False
         
     def connect(self) -> bool:
         """FC 연결"""
@@ -124,30 +134,94 @@ class ArduPilotDroneController:
         if msg and msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
             self.is_armed = True
             print("시동 성공!")
+            
+            # 시동 후 5초 대기 (안정화)
+            print("시동 안정화 대기 중... (5초)")
+            time.sleep(5)
+            
+            # 시동 후 기본 호버링 상태로 설정 (70%)
+            self.is_hovering = True
+            self.current_command = ["level", "hover", 0, 70]
+            print("준비 완료!")
+            
             return True
         else:
             print("시동 실패")
             return False
     
     def disarm(self) -> bool:
-        """시동 끄기"""
-        print("시동 끄기...")
+        """시동 끄기 (개선된 버전)"""
+        print("시동 끄기 시작...")
         
+        # 1. 모든 이동 중지
+        self.is_hovering = False
+        self.gps_active = False
+        self.running = False  # 제어 루프 중지
+        
+        # 2. 쓰로틀을 완전히 최소값으로 (여러 번 전송)
+        print("쓰로틀 0으로 설정 중...")
+        for _ in range(5):
+            self.master.mav.rc_channels_override_send(
+                self.master.target_system,
+                self.master.target_component,
+                1500,   # CH1 - Roll (중립)
+                1500,   # CH2 - Pitch (중립)  
+                1000,   # CH3 - Throttle (최소)
+                1500,   # CH4 - Yaw (중립)
+                0, 0    # CH5-6 (사용 안함)
+            )
+            time.sleep(0.2)
+        
+        # 3. LAND 모드로 전환 (착륙 모드)
+        print("LAND 모드 전환...")
+        self.master.mav.set_mode_send(
+            self.master.target_system,
+            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            9  # LAND = 9
+        )
+        time.sleep(2)
+        
+        # 4. 강제 DISARM 명령 (21196 = 강제 disarm)
+        print("강제 시동 끄기 명령 전송...")
         self.master.mav.command_long_send(
             self.master.target_system,
             self.master.target_component,
             mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
             0,
-            0,  # 0=disarm
-            0, 0, 0, 0, 0, 0
+            0,      # 0=disarm
+            21196,  # 강제 disarm 매직 넘버
+            0, 0, 0, 0, 0
+        )
+        
+        # 응답 대기
+        msg = self.master.recv_match(type='COMMAND_ACK', blocking=True, timeout=3)
+        
+        # 5. 일반 DISARM 재시도
+        if not msg or msg.result != mavutil.mavlink.MAV_RESULT_ACCEPTED:
+            print("일반 시동 끄기 재시도...")
+            self.master.mav.command_long_send(
+                self.master.target_system,
+                self.master.target_component,
+                mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
+                0,
+                0,  # 0=disarm
+                0, 0, 0, 0, 0, 0
+            )
+            time.sleep(1)
+        
+        # 6. RC Override 해제
+        print("RC Override 해제...")
+        self.master.mav.rc_channels_override_send(
+            self.master.target_system,
+            self.master.target_component,
+            0, 0, 0, 0, 0, 0, 0, 0  # 모든 채널 해제
         )
         
         self.is_armed = False
-        time.sleep(1)
-        print("시동 꺼짐")
+        print("시동 끄기 완료!")
         return True
     
-    def set_command(self, vertical: str, horizontal: str, rotation: int, speed: int):
+    def set_command(self, vertical: str, horizontal: str, rotation: int, throttle_percent: int):
         """
         4가지 데이터로 드론 제어
         
@@ -157,14 +231,35 @@ class ArduPilotDroneController:
                        "forward_left", "forward_right", 
                        "backward_left", "backward_right", "hover"
             rotation: 0-359 (시계방향 회전)
-            speed: 0-100 (모터 부하 %)
+            throttle_percent: 60(하강), 70(호버링/이동), 90(상승)만 사용
         """
         if not self.is_armed:
             print("시동이 걸려있지 않음")
             return False
         
-        self.current_command = [vertical, horizontal, rotation, speed]
-        print(f"명령: [{vertical}, {horizontal}, {rotation}°, {speed}%]")
+        # 쓰로틀 값 검증 (60, 70, 90만 허용)
+        if throttle_percent not in [60, 70, 90]:
+            print(f"잘못된 쓰로틀 값: {throttle_percent}. 60, 70, 90만 사용 가능")
+            return False
+        
+        # 호버링 상태 해제 (새 명령이 왔으므로)
+        self.is_hovering = False
+        
+        # GPS 이동 취소
+        if self.gps_active:
+            self.gps_active = False
+            print("GPS 이동 취소됨")
+        
+        self.current_command = [vertical, horizontal, rotation, throttle_percent]
+        
+        # 상태 설명
+        throttle_desc = {
+            60: "하강/착륙",
+            70: "호버링/이동",
+            90: "상승/이륙"
+        }
+        
+        print(f"명령: [{vertical}, {horizontal}, {rotation}°, {throttle_percent}%({throttle_desc[throttle_percent]})]")
         return True
     
     def _control_loop(self):
@@ -172,53 +267,47 @@ class ArduPilotDroneController:
         while self.running:
             try:
                 if self.is_armed:
-                    vertical, horizontal, rotation, speed = self.current_command
+                    # 호버링 상태면 강제로 호버링 명령 유지 (70%)
+                    if self.is_hovering:
+                        vertical, horizontal, rotation, throttle_percent = "level", "hover", 0, 70
+                    else:
+                        vertical, horizontal, rotation, throttle_percent = self.current_command
                     
-                    # PWM 값 계산 (1000-2000)
-                    throttle_pwm = 1000  # 기본값
+                    # PWM 값 계산
+                    throttle_pwm = self.THROTTLE_MAP.get(throttle_percent, 1600)  # 기본값 70%
                     roll_pwm = 1500      # 중립
                     pitch_pwm = 1500     # 중립
                     yaw_pwm = 1500       # 중립
                     
-                    # Vertical (쓰로틀)
-                    if vertical == "up":
-                        throttle_pwm = self.THROTTLE_TAKEOFF
-                    elif vertical == "down":
-                        throttle_pwm = self.THROTTLE_LAND
-                    else:  # level
-                        throttle_pwm = self.THROTTLE_HOVER
-                    
-                    # 속도 보정
-                    throttle_pwm = 1000 + int((throttle_pwm - 1000) * (speed / 100.0))
-                    
-                    # Horizontal (이동)
-                    move_amount = int(300 * (speed / 100.0))  # 최대 ±300 PWM
-                    
-                    if horizontal == "forward":
-                        pitch_pwm = 1500 - move_amount
-                    elif horizontal == "backward":
-                        pitch_pwm = 1500 + move_amount
-                    elif horizontal == "left":
-                        roll_pwm = 1500 - move_amount
-                    elif horizontal == "right":
-                        roll_pwm = 1500 + move_amount
-                    elif horizontal == "forward_left":
-                        pitch_pwm = 1500 - int(move_amount * 0.7)
-                        roll_pwm = 1500 - int(move_amount * 0.7)
-                    elif horizontal == "forward_right":
-                        pitch_pwm = 1500 - int(move_amount * 0.7)
-                        roll_pwm = 1500 + int(move_amount * 0.7)
-                    elif horizontal == "backward_left":
-                        pitch_pwm = 1500 + int(move_amount * 0.7)
-                        roll_pwm = 1500 - int(move_amount * 0.7)
-                    elif horizontal == "backward_right":
-                        pitch_pwm = 1500 + int(move_amount * 0.7)
-                        roll_pwm = 1500 + int(move_amount * 0.7)
-                    
-                    # Rotation (Yaw)
-                    if rotation > 0:
-                        yaw_rate = int((rotation / 360.0) * 500)
-                        yaw_pwm = 1500 + yaw_rate
+                    # Horizontal (이동) - 호버링이 아닐 때만
+                    if not self.is_hovering and horizontal != "hover":
+                        move_amount = 200  # 이동 시 고정값
+                        
+                        if horizontal == "forward":
+                            pitch_pwm = 1500 - move_amount
+                        elif horizontal == "backward":
+                            pitch_pwm = 1500 + move_amount
+                        elif horizontal == "left":
+                            roll_pwm = 1500 - move_amount
+                        elif horizontal == "right":
+                            roll_pwm = 1500 + move_amount
+                        elif horizontal == "forward_left":
+                            pitch_pwm = 1500 - int(move_amount * 0.7)
+                            roll_pwm = 1500 - int(move_amount * 0.7)
+                        elif horizontal == "forward_right":
+                            pitch_pwm = 1500 - int(move_amount * 0.7)
+                            roll_pwm = 1500 + int(move_amount * 0.7)
+                        elif horizontal == "backward_left":
+                            pitch_pwm = 1500 + int(move_amount * 0.7)
+                            roll_pwm = 1500 - int(move_amount * 0.7)
+                        elif horizontal == "backward_right":
+                            pitch_pwm = 1500 + int(move_amount * 0.7)
+                            roll_pwm = 1500 + int(move_amount * 0.7)
+                        
+                        # Rotation (Yaw)
+                        if rotation > 0:
+                            yaw_rate = int((rotation / 360.0) * 500)
+                            yaw_pwm = 1500 + yaw_rate
                     
                     # RC Override 전송 (ArduPilot 방식)
                     self.master.mav.rc_channels_override_send(
@@ -237,64 +326,40 @@ class ArduPilotDroneController:
                 print(f"제어 오류: {e}")
                 time.sleep(0.1)
     
-    def goto_gps(self, latitude: float, longitude: float, altitude: Optional[float] = None):
-        """GPS 좌표로 이동 (GPS 모듈 필요)"""
-        if not self.is_armed:
-            return False
-        
-        # GUIDED 모드로 전환
-        self.master.mav.set_mode_send(
-            self.master.target_system,
-            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-            4  # GUIDED = 4
-        )
-        time.sleep(1)
-        
-        # 목표 위치 전송
-        self.master.mav.set_position_target_global_int_send(
-            0,
-            self.master.target_system,
-            self.master.target_component,
-            mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
-            0b0000111111111000,
-            int(latitude * 1e7),
-            int(longitude * 1e7),
-            altitude if altitude else 10,
-            0, 0, 0, 0, 0, 0, 0, 0
-        )
-        
-        print(f"GPS 이동: ({latitude:.6f}, {longitude:.6f})")
-        return True
-    
     def brake(self):
         """긴급 정지 / 호버링"""
-        print("브레이크! (호버링)")
+        print("\n!!! 브레이크 !!! - 모든 이동 중지, 호버링 시작")
         
-        # LOITER 모드 (ArduPilot 호버링)
-        self.master.mav.set_mode_send(
+        # 모든 이동 명령 취소
+        self.gps_active = False  # GPS 이동 취소
+        
+        # 호버링 상태 활성화
+        self.is_hovering = True
+        
+        # 즉시 중립 위치로 설정 (70% 쓰로틀 유지)
+        self.master.mav.rc_channels_override_send(
             self.master.target_system,
-            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-            5  # LOITER = 5
+            self.master.target_component,
+            1500,                         # CH1 - Roll (중립)
+            1500,                         # CH2 - Pitch (중립)
+            self.THROTTLE_MAP[70],        # CH3 - Throttle (70%)
+            1500,                         # CH4 - Yaw (중립)
+            0, 0, 0, 0
         )
         
-        # 수동으로도 중립 설정
-        self.current_command = ["level", "hover", 0, 0]
-        time.sleep(0.5)
-        
-        # STABILIZE 모드로 복귀
-        self.master.mav.set_mode_send(
-            self.master.target_system,
-            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-            0  # STABILIZE = 0
-        )
-        
-        print("호버링 중...")
+        print(f"호버링 모드 활성화 (쓰로틀 70% = {self.THROTTLE_MAP[70]} PWM)")
+        print("다음 명령 대기 중...")
     
     def close(self):
         """연결 종료"""
         self.running = False
+        self.is_hovering = False
+        self.gps_active = False
+        
         if self.control_thread:
             self.control_thread.join(timeout=1)
+        if self.gps_thread:
+            self.gps_thread.join(timeout=1)
         if self.master:
             self.master.close()
 
@@ -309,35 +374,52 @@ def main():
         return
     
     try:
-        # 시동
+        # 시동 (5초 대기 포함)
+        print("\n=== 드론 테스트 시작 ===")
         drone.arm()
+        
+        # 상승 (90% 쓰로틀, 5초)
+        print("\n[1] 상승 시작 (90% 쓰로틀, 5초)...")
+        drone.set_command("up", "hover", 0, 90)
+        time.sleep(5)
+        
+        # 2초 딜레이
+        print("\n2초 대기...")
         time.sleep(2)
         
-        print("\n=== 모터 테스트 ===")
+        # 호버링 (70% 쓰로틀, 5초)
+        print("\n[2] 호버링 (70% 쓰로틀, 5초)...")
+        drone.set_command("level", "hover", 0, 70)
+        time.sleep(5)
         
-        # 쓰로틀 테스트 (지상)
-        print("쓰로틀 50% (3초)...")
-        drone.set_command("level", "hover", 0, 50)
-        time.sleep(3)
+        # 2초 딜레이
+        print("\n2초 대기...")
+        time.sleep(2)
         
-        print("쓰로틀 80% (3초)...")
-        drone.set_command("level", "hover", 0, 80)
-        time.sleep(3)
+        # 하강 (60% 쓰로틀, 5초)
+        print("\n[3] 하강 (60% 쓰로틀, 5초)...")
+        drone.set_command("down", "hover", 0, 60)
+        time.sleep(5)
         
-        # 브레이크
-        drone.brake()
+        # 2초 딜레이
+        print("\n2초 대기...")
         time.sleep(2)
         
         # 시동 끄기
+        print("\n[4] 시동 끄기...")
         drone.disarm()
         
+        print("\n=== 테스트 완료 ===")
+        
     except KeyboardInterrupt:
-        print("\n긴급 중단!")
+        print("\n\n긴급 중단!")
         drone.brake()
+        time.sleep(1)
         drone.disarm()
     
     finally:
         drone.close()
+        print("프로그램 종료")
 
 if __name__ == "__main__":
     main()
