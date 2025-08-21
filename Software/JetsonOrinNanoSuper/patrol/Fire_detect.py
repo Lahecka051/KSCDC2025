@@ -36,7 +36,7 @@ class Fire_detect:
         return mapping.get((vertical,horizontal),None)
 
      # 화재 지점 GPS 추정 함수
-    def _estimate_fire_gps(self, drone_gps: GPSData, angle_x: float, angle_y: float) -> tuple:
+    def fire_gps(self, drone_gps, angle_x, angle_y)
         # 이 함수는 드론의 현재 GPS, Yaw, 피치, 롤, 고도, 그리고 카메라 시야각을
         # 기반으로 지상의 화재 지점 GPS를 추정합니다.
         # 실제 구현은 복잡하며, 여기서는 단순화된 가정을 사용합니다.
@@ -63,21 +63,18 @@ class Fire_detect:
 
         return (estimated_lat, estimated_lon)
 
-    def detect_fire_upper(self):
+    def detect_fire_upper(self,drone_gps):
       ret, frame = self.cap0.read()
       if not ret: return False, None, None
       results = self.model.predict(frame, imgsz=920, conf=0.4, verbose=False)
       if len(results[0].boxes) > 0:
         best_box = max(results[0].boxes, key=lambda box: box.conf[0])
-        class_name = self.class_names[int(best_box.cls[0])]
-        
-        if len(results[0].boxes) > 0:
-        best_box = max(results[0].boxes, key=lambda box: box.conf[0])
-        class_name = self.class_names[int(best_box.cls[0])]
-        
+        class_name = self.class_names[int(best_box.cls[0])]   
         if class_name.lower() in ["fire", "smoke"]:
-            x1,y1,x2,y2 = best_box.xyxy[0]
-            center_x = int((x1+x2)/2)
-            center_y = int((y1+y2)/2)
+          x1,y1,x2,y2 = best_box.xyxy[0]
+          center_x = int((x1+x2)/2)
+          center_y = int((y1+y2)/2)
+          lat, lon = self.fire_gps(drone_gps, center_x, center_y)
+          
             
       
