@@ -83,10 +83,6 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
         self.position_hold_enabled = False
         self.position_hold_thread = None
         
-        # 시동 유지 관련 (ArduPilot 자동 DISARM 방지)
-        self.keep_armed = False
-        self.arm_keeper_thread = None
-        
         # 파라미터
         self.TARGET_ALTITUDE = 2.0  # 목표 고도 (m)
         self.ALTITUDE_TOLERANCE = 0.2  # 고도 허용 오차 (m)
@@ -102,25 +98,10 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
         self.POSITION_CORRECTION_SPEED = 30.0  # 위치 보정 속도 (%)
         self.WIND_RESISTANCE_GAIN = 1.5  # 바람 저항 계수
         
-    # ========================= 연결 관리 (오버라이드) =========================
-    
-    def disconnect(self):
-        """연결 해제 (오버라이드)"""
-        # 시동 유지 종료
-        self.keep_armed = False
-        
-        # 시동 유지 스레드 종료 대기
-        if self.arm_keeper_thread and self.arm_keeper_thread.is_alive():
-            self.arm_keeper_thread.join(timeout=1)
-        
-        # 부모 클래스의 disconnect 호출
-        super().disconnect()
-        self.logger.info("시스템 연결 해제 완료")
-    
     # ========================= ARM/DISARM =========================
     
     def arm(self) -> bool:
-        """시동 걸기 (자동 DISARM 방지 기능 포함)"""
+        """시동 걸기"""
         try:
             self._set_flight_state(FlightState.ARMING)
             
@@ -142,13 +123,6 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
                 # 시동 상태 확인 (실제로는 FC 응답을 받아야 함)
                 self._set_flight_state(FlightState.ARMED)
                 self.logger.info("✓ 시동 성공 (ARM)")
-                
-                # 시동 유지 스레드 시작 (ArduPilot 자동 DISARM 방지)
-                self.keep_armed = True
-                self.arm_keeper_thread = threading.Thread(target=self._keep_armed_loop, daemon=True)
-                self.arm_keeper_thread.start()
-                self.logger.info("시동 유지 모드 활성화")
-                
                 return True
                 
         except Exception as e:
@@ -160,13 +134,7 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
     def disarm(self) -> bool:
         """시동 끄기"""
         try:
-            # 시동 유지 종료
-            self.keep_armed = False
             self.position_hold_enabled = False
-            
-            # 시동 유지 스레드 종료 대기
-            if self.arm_keeper_thread and self.arm_keeper_thread.is_alive():
-                self.arm_keeper_thread.join(timeout=1)
             
             command = {
                 'type': 'ARM',
@@ -188,98 +156,6 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
             self.logger.error(f"DISARM 오류: {e}")
             
         return False
-    
-    # ========================= 시동 유지 (ArduPilot 자동 DISARM 방지) =========================
-    
-    def _keep_armed_loop(self):
-        """
-        시동 유지 루프
-        ArduPilot의 자동 DISARM을 방지하기 위해 주기적으로 명령 전송
-        """
-        self.logger.info("시동 유지 루프 시작 (자동 DISARM 방지)")
-        
-        while self.keep_armed and self.flight_state not in [FlightState.DISARMED, FlightState.LANDING, FlightState.LANDED]:
-            try:
-                # 1. 작은 쓰로틀 펄스 전송
-                self._send_throttle_pulse()
-                
-                # 2. 위치 유지 명령 전송
-                self._send_position_hold_cmd()
-                
-                # 3. Heartbeat 전송
-                self._send_heartbeat()
-                
-                # 2초마다 반복
-                time.sleep(2)
-                
-            except Exception as e:
-                self.logger.error(f"시동 유지 오류: {e}")
-                time.sleep(1)
-        
-        self.logger.info("시동 유지 루프 종료")
-    
-    def _send_throttle_pulse(self):
-        """작은 쓰로틀 펄스 전송 (RC Override)"""
-        try:
-            command = {
-                'type': 'RC_OVERRIDE',
-                'data': {
-                    'channels': {
-                        'throttle': 1100,  # 최소 쓰로틀 값
-                        'roll': 1500,      # 중립
-                        'pitch': 1500,     # 중립
-                        'yaw': 1500        # 중립
-                    },
-                    'timestamp': time.time()
-                }
-            }
-            
-            if self.serial and self.serial.is_open:
-                json_str = json.dumps(command) + '\n'
-                self.serial.write(json_str.encode('utf-8'))
-                self.logger.debug("쓰로틀 펄스 전송")
-                
-        except Exception as e:
-            self.logger.debug(f"쓰로틀 펄스 오류: {e}")
-    
-    def _send_position_hold_cmd(self):
-        """현재 위치 유지 명령"""
-        try:
-            command = {
-                'type': 'POSITION_HOLD',
-                'data': {
-                    'mode': 'current',
-                    'timestamp': time.time()
-                }
-            }
-            
-            if self.serial and self.serial.is_open:
-                json_str = json.dumps(command) + '\n'
-                self.serial.write(json_str.encode('utf-8'))
-                self.logger.debug("위치 유지 명령 전송")
-                
-        except Exception as e:
-            self.logger.debug(f"위치 유지 명령 오류: {e}")
-    
-    def _send_heartbeat(self):
-        """Heartbeat 메시지 전송"""
-        try:
-            command = {
-                'type': 'HEARTBEAT',
-                'data': {
-                    'system_id': 1,
-                    'component_id': 1,
-                    'timestamp': time.time()
-                }
-            }
-            
-            if self.serial and self.serial.is_open:
-                json_str = json.dumps(command) + '\n'
-                self.serial.write(json_str.encode('utf-8'))
-                self.logger.debug("Heartbeat 전송")
-                
-        except Exception as e:
-            self.logger.debug(f"Heartbeat 오류: {e}")
     
     # ========================= 자동 이륙 =========================
     
@@ -459,9 +335,8 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
         """자동 착륙"""
         self.logger.info("자동 착륙 시작")
         
-        # 위치 유지 및 시동 유지 비활성화
+        # 위치 유지 비활성화
         self.position_hold_enabled = False
-        self.keep_armed = False  # 착륙 시작 시 시동 유지 종료
         self._set_flight_state(FlightState.LANDING)
         
         # 착륙 시작
@@ -517,13 +392,9 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
                 return False
             
             # 2. 5초 대기
-            self.logger.info("\n[2단계] 5초 대기 (시동 유지 중)...")
+            self.logger.info("\n[2단계] 5초 대기...")
             for i in range(5, 0, -1):
-                # 시동 상태 확인
-                if self.flight_state != FlightState.ARMED:
-                    self.logger.error("시동이 꺼짐! 미션 중단")
-                    return False
-                self.logger.info(f"이륙까지 {i}초... (시동 유지 활성화)")
+                self.logger.info(f"이륙까지 {i}초...")
                 time.sleep(1)
             
             # 3. 2m 이륙
@@ -682,7 +553,6 @@ def main():
     print("\n" + "="*60)
     print("자동 이륙/착륙 시스템")
     print("시동 → 5초 대기 → 2m 이륙 → 10초 호버링 → 착륙")
-    print("ArduPilot 자동 DISARM 방지 기능 포함")
     print("="*60 + "\n")
     
     # 시스템 생성
@@ -705,7 +575,6 @@ def main():
             print(f"  - 착륙 쓰로틀: {drone_system.THROTTLE_LAND}%")
             print(f"  - 위치 허용 오차: {drone_system.POSITION_TOLERANCE}m")
             print(f"  - 바람 저항 계수: {drone_system.WIND_RESISTANCE_GAIN}")
-            print(f"  - 시동 유지: 2초 간격으로 자동 DISARM 방지")
         else:
             print("\n❌ 미션 실패")
             
