@@ -11,6 +11,31 @@
 
 - gps데이터 (위도,경도,(고도 or None)) 를 받으면  드론 이동
 
+# GPS 좌표로 이동 (고도 옵션)
+- drone.goto_gps(위도, 경도)           # 현재 고도 유지
+- drone.goto_gps(위도, 경도, 고도)     # 지정 고도로 이동
+- drone.goto_home()                    # 홈 복귀
+
+- # 드론 생성 및 연결
+- drone = DroneControl('/dev/ttyTHS1', 115200)
+- drone.connect()
+
+# 시동 및 이륙
+- drone.vehicle.armed = True
+- drone.takeoff(2.0)
+
+# 4가지 데이터 제어
+- drone.set_command("level", "forward", 0, 50)        # 전진
+- drone.set_command("level", "forward_right", 0, 50)  # 우전방
+- drone.set_command("level", "hover", 90, 0)          # 90도 회전
+- drone.set_command("up", "forward", 0, 60)           # 상승+전진
+
+# GPS 이동
+- drone.goto_gps(37.123456, 127.123456)
+
+# 착륙
+- drone.land()
+
 ## 드론스테이션 
 - 리턴투홈 착륙중에 착륙 완료 판단 유무 정확한 확인 방법 필요
 
