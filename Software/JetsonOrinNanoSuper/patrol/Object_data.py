@@ -2,14 +2,15 @@ from ultralytics import YOLO
 import cv2
 import time
 import numpy as np
+from pipeline import gstreamer_pipeline
 
 class Object_Data:
     def __init__(self, cap, mode="upper"):
         self.cap = cap
         self.mode = mode  # "upper" or "lower"
         self.model = YOLO("best.engine")
-        self.frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         # 3x3 그리드
         self.w1, self.w2 = self.frame_width // 3, 2 * self.frame_width // 3
