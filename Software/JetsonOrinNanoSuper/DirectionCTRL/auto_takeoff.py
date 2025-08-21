@@ -89,9 +89,9 @@ class AutoTakeoffLandingSystem(IntegratedDroneSystem):
         self.POSITION_TOLERANCE = 0.5  # 위치 허용 오차 (m)
         
         # 쓰로틀 설정
-        self.THROTTLE_TAKEOFF = 75.0   # 이륙 쓰로틀 (%)
+        self.THROTTLE_TAKEOFF = 80.0   # 이륙 쓰로틀 (%)
         self.THROTTLE_HOVER = 60.0     # 호버링 쓰로틀 (%)
-        self.THROTTLE_LAND = 40.0      # 착륙 쓰로틀 (%)
+        self.THROTTLE_LAND = 50.0      # 착륙 쓰로틀 (%)
         
         # 위치 보정 파라미터
         self.MAX_TILT_ANGLE = 10.0  # 최대 기울기 (도)
