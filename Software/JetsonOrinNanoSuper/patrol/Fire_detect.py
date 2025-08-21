@@ -36,7 +36,7 @@ class Fire_detect:
         return mapping.get((vertical,horizontal),None)
 
      # 화재 지점 GPS 추정 함수
-    def fire_gps(self, drone_gps, angle_x, angle_y)
+    def fire_gps(self, drone_gps, center_x, center_y)
         # 이 함수는 드론의 현재 GPS, Yaw, 피치, 롤, 고도, 그리고 카메라 시야각을
         # 기반으로 지상의 화재 지점 GPS를 추정합니다.
         # 실제 구현은 복잡하며, 여기서는 단순화된 가정을 사용합니다.
