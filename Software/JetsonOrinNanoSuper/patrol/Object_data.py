@@ -47,7 +47,7 @@ class Object_Data:
             x1,y1,x2,y2 = best_box.xyxy[0]
             center_x = int((x1+x2)/2)
             center_y = int((y1+y2)/2)
-            if class_name.lower() in ["fire","flame"]:
+            if class_name.lower() in ["fire","smoke"]:
                 image_path = "upper_detected_fire.jpg"
                 cv2.imwrite(image_path, frame)
                 cmd = self.get_position_command(center_x, center_y)
