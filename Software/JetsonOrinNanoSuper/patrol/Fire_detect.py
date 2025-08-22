@@ -14,6 +14,13 @@ class Fire_detect:
     self.w1, self.w2 = self.frame_width // 3, 2 * self.frame_width // 3
     self.h1, self.h2 = self.frame_height // 3, 2 * self.frame_height // 3
     self.class_names = self.model.names
+    
+    self.observing = False
+    self.start_time = None
+    self.last_detection = None
+    self.detection_count = 0
+    self.FIRE_CONFIRMATION_DURATION = 3 #화제 판정을 위한 연속 감지 시간
+    self.OBSERVATIOPN_TIMEOUT = 5
 
   def get_position_command(self, x, y):
         if y < self.h1: vertical = "위"
@@ -72,14 +79,43 @@ class Fire_detect:
       ret, frame = self.cap0.read()
       if not ret: return False, None, None
       results = self.model.predict(frame, imgsz=920, conf=0.4, verbose=False)
+      fire_detected = False
+      best_box = None
+      center_x = None
+      center_y = None
       if len(results[0].boxes) > 0:
         best_box = max(results[0].boxes, key=lambda box: box.conf[0])
         class_name = self.class_names[int(best_box.cls[0])]   
         if class_name.lower() in ["fire", "smoke"]:
+          fire_detected = True
           x1,y1,x2,y2 = best_box.xyxy[0]
           center_x = int((x1+x2)/2)
           center_y = int((y1+y2)/2)
-          lat, lon = self.fire_gps(drone_gps, center_x, center_y)
-          
-            
+
+      fire_confirmed = False
+      fire_coords = None
+      if fire_detectde:
+        if not self.observing:
+          self.observing = True
+          self.start_time = time.time()
+          self.detection_count = 1
+        else:
+          self.detection_count += 1
+
+        elapsed_time = time.time() - self.start_time
+        if elapsed_time >= self.OBSERVATION_TIMEOUT:
+          if self.detection_count >= 3:
+            fire_confirmed = True
+            fire_coords = self.fire_gps(drone_gps, center_x, center_y)
+          self.observing = False
+          self.detection_count = 0
+          self.start_time = None
       
+      else:
+        if self.observing:
+          self.observig = False
+          self.detection_count = 0
+          self.start_time = None
+
+      return fire_confirmed, fire_coords
+          
