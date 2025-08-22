@@ -4,7 +4,7 @@ import numpy as np
 import time
 from ultralytics import YOLO
 
-class Fire_detect:
+class Fire_detector:
   def __init__(self, cap0, cap1):
     self.cap0 = cap0
     self.cap1 = cap1
