@@ -5,8 +5,8 @@ import time
 import cv2
 
 class Patrol():
-  def __init__(self, drone_system: IntegratedDroneSystem, object_detector, landing, communicator):
+  def __init__(self, drone_system: IntegratedDroneSystem, fire_detector, landing, communicator):
     self.drone_system = drone_system
-    self.object_detector = object_detector
+    self.fire_detector = fire_detector
     self.landing = landing
     self.communicator = communicator
