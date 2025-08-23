@@ -12,7 +12,7 @@ class Patrol():
         self.communicator = communicator
 
     def run(self, command_data):
-        #여기에 gps좌표로 이동하는 함수
+        #여기에 gps(command_data)좌표로 이동하는 함수
         fire_confirmed = False
         align = False
         while not fire_confirmed
@@ -22,14 +22,20 @@ class Patrol():
             # 드론을 호버링 시키는 함수
             time.sleep(5)
             fire_confirmed, fire_coords = detect_fire_upper(Current_coordinates)
+            if self.fire_detector.not_detect:
+                #여기에 gps(command_data)좌표로 이동하는 함수
 
-        #여기에 fire_coords 좌표로 이동하는 함수 이동완료할때까지 다음 while문으로 안넘어가게 할 방법 필요
-        while not align:
-            align, cmd = align_drone_to_object()
-            #cmd기준으로 드론을 움직이는 함수
-
-        coordinates = #여기에 현재gps좌표를 읽어오는 함수
-        self.fire_detctor.capture_and_save_image()
+        if fire_confirmed:
+            #여기에 fire_coords 좌표로 이동하는 함수 이동완료할때까지 다음 while문으로 안넘어가게 할 방법 필요
+            while not align:
+                align, cmd = align_drone_to_object()
+                #cmd기준으로 드론을 움직이는 함수
+                if self.fire_detector.patrol_state == 'stop':
+                    break
+            if not self.fire_detector.patrol_state == 'stop':
+                coordinates = #여기에 현재gps좌표를 읽어오는 함수
+                self.fire_detctor.capture_and_save_image()
         #여기에 드론 스테이션으로 돌아가게 하는 함수
         self.landing.run()
-        self.communicator.send_fire_report(coordinates, image_path):
+        if fire_confirmed:
+            self.communicator.send_fire_report(coordinates, image_path):
