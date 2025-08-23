@@ -91,7 +91,7 @@ class Fire_detector:
 
       fire_confirmed = False
       fire_coords = None
-      if fire_detectde:
+      if fire_detected:
         if not self.observing:
           self.observing = True
           self.start_time = time.time()
