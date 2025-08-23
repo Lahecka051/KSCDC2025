@@ -28,8 +28,8 @@ class Patrol():
             align, cmd = align_drone_to_object()
             #cmd기준으로 드론을 움직이는 함수
 
-        #여기에 현재gps좌표를 읽어오는 함수
+        coordinates = #여기에 현재gps좌표를 읽어오는 함수
         self.fire_detctor.capture_and_save_image()
         #여기에 드론 스테이션으로 돌아가게 하는 함수
         #착륙함수
-        # gps좌표와 사진을 전송하는 함수
+        self.communicator.send_fire_report(coordinates, image_path):
