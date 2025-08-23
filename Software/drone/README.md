@@ -1,4 +1,4 @@
-# Jetson Orin Nano용 완성 코드
+# Jetson Orin Nano용 코드
 
 ### main.py
 - 실제로 실행될 main 각종 객체생성 초기값 설정 등등
