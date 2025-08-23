@@ -31,5 +31,5 @@ class Patrol():
         coordinates = #여기에 현재gps좌표를 읽어오는 함수
         self.fire_detctor.capture_and_save_image()
         #여기에 드론 스테이션으로 돌아가게 하는 함수
-        #착륙함수
+        self.landing.run()
         self.communicator.send_fire_report(coordinates, image_path):
