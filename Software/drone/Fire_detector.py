@@ -26,6 +26,7 @@ class Fire_detector:
         self.detection_count = 0
         self.FIRE_CONFIRMATION_DURATION = 3  # 화재 판정을 위한 연속 감지 시간
         self.OBSERVATION_TIMEOUT = 5
+        self.not_detect = False
 
         # --- 드론 중앙정렬에 쓰이는 변수 ---
         self.Kp_x = 0.05
@@ -66,6 +67,7 @@ class Fire_detector:
         return (estimated_lat, estimated_lon)
 
     def detect_fire_upper(self, drone_gps):
+        self.not_detect = False
         ret, frame = self.cap0.read()
         if not ret:
             return False, None, None
@@ -110,6 +112,7 @@ class Fire_detector:
                 self.observing = False
                 self.detection_count = 0
                 self.start_time = None
+                self.not_detect = True
 
         return fire_confirmed, fire_coords
 
