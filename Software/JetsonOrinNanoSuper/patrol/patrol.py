@@ -12,7 +12,7 @@ class Patrol():
         self.communicator = communicator
 
     def run(self, command_data):
-    #여기에 gps좌표로 이동하는 함수
+        #여기에 gps좌표로 이동하는 함수
         fire_confirmed = False
         align = False
         while not fire_confirmed
