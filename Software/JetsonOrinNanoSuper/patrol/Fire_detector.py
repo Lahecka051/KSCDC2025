@@ -162,12 +162,12 @@ class Fire_detector:
         단일 프레임을 처리하고 명령어를 반환합니다.
 
         Returns:
-            tuple: (정렬 완료 여부, 드론 제어 명령어)
+            정렬 완료 여부, 드론 제어 명령어
         """
         ret, frame = self.cap1.read()
         if not ret:
             print("하단 카메라 프레임을 읽을 수 없습니다.")
-            return (False, ["level", "hover", 0, 0])
+            return False, ["level", "hover", 0, 0]
 
         results = self.model.predict(frame, imgsz=960, conf=0.4, verbose=False)
         
@@ -187,7 +187,7 @@ class Fire_detector:
             else:
                 # 객체가 없으면 순찰 로직 실행
                 cmd = self.patrol_logic()
-                return (False, cmd)
+                return False, cmd
 
         # 정렬 모드일 때
         if not self.patrol_mode:
@@ -198,7 +198,7 @@ class Fire_detector:
                 self.patrol_laps = 0
                 self.last_move_time = time.time()
                 cmd = self.patrol_logic()
-                return (False, cmd)
+                return False, cmd
             
             # 정렬 로직
             x1, y1, x2, y2 = best_box.xyxy[0]
@@ -212,7 +212,7 @@ class Fire_detector:
                 print(f"✅ 정렬 완료! 오차: ({error_x}, {error_y})")
                 self.patrol_mode = True
                 self.patrol_laps = 0
-                return (True, ["level", "hover", 0, 0])
+                return True, ["level", "hover", 0, 0]
             
             speed_x = int(abs(error_x) * self.Kp_x)
             speed_y = int(abs(error_y) * self.Kp_y)
@@ -235,14 +235,14 @@ class Fire_detector:
             # 여기서는 이동 명령만 반환합니다.
             print(f"오차: ({error_x}, {error_y}), 명령: {vertical_cmd}, {horizontal_cmd}")
             if horizontal_cmd == "hover" and vertical_cmd != "hover":
-                return (False, ["level", vertical_cmd, 0, speed_y])
+                return False, ["level", vertical_cmd, 0, speed_y]
             elif horizontal_cmd != "hover" and vertical_cmd == "hover":
-                return (False, ["level", horizontal_cmd, 0, speed_x])
+                return False, ["level", horizontal_cmd, 0, speed_x]
             else:
-                return (False, ["level", f"{vertical_cmd}_{horizontal_cmd}", 0, max(speed_x, speed_y)])
+                return False, ["level", f"{vertical_cmd}_{horizontal_cmd}", 0, max(speed_x, speed_y)]
           #======================================================
         else:
             print("특정 객체 탐지 실패. 순찰 모드로 유지.")
             self.patrol_mode = True
             cmd = self.patrol_logic()
-            return (False, cmd)
+            return False, cmd
