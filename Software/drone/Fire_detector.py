@@ -35,9 +35,6 @@ class Fire_detector:
         # 순찰 관련 변수
         self.patrol_mode = True
         self.patrol_state = 'top'
-        self.last_move_time = time.time()
-        self.move_duration = 3
-        self.is_moving = False
         self.patrol_laps = 0
         self.max_patrol_laps = 2
 
@@ -120,35 +117,24 @@ class Fire_detector:
         if self.patrol_laps >= self.max_patrol_laps:
             print("최대 순찰 횟수 도달. 순찰 종료 및 호버링.")
             self.patrol_mode = False
+            self.patrol_state = 'stop'
+            self.patrol_laps = 0
             return ["level", "hover", 0, 0]
 
-        if time.time() - self.last_move_time > self.move_duration:
-            if self.patrol_state == 'top':
-                print("순찰: 전진")
-                cmd = ["level", "forward", 0, 30]
-                self.patrol_state = 'right'
-            elif self.patrol_state == 'right':
-                print("순찰: 우측 회전")
-                cmd = ["level", "hover", 90, 0]
-                self.patrol_state = 'bottom'
-            elif self.patrol_state == 'bottom':
-                print("순찰: 후진")
-                cmd = ["level", "backward", 0, 30]
-                self.patrol_state = 'left'
-            elif self.patrol_state == 'left':
-                print("순찰: 좌측 회전")
-                cmd = ["level", "hover", -90, 0]
-                self.patrol_state = 'top'
-                self.patrol_laps += 1
-            self.last_move_time = time.time()
-            self.is_moving = True
-            return cmd
-        else:
-            if not self.is_moving:
-                cmd = ["level", "hover", 0, 0]
-                self.is_moving = True
-                return cmd
-        return None
+        if self.patrol_state == 'top':
+            cmd = ["level", "forward", 0, 10]
+            self.patrol_state = 'right'
+        elif self.patrol_state == 'right':
+            cmd = ["level", "right", 0, 0]
+            self.patrol_state = 'bottom'
+        elif self.patrol_state == 'bottom':
+            cmd = ["level", "backward", 0, 10]
+            self.patrol_state = 'left'
+        elif self.patrol_state == 'left':
+            cmd = ["level", "left", 0, 0]
+            self.patrol_state = 'top'
+            self.patrol_laps += 1
+        return cmd
 
     def align_drone_to_object(self):
         ret, frame = self.cap1.read()
@@ -172,6 +158,7 @@ class Fire_detector:
                 self.patrol_mode = False
             else:
                 cmd = self.patrol_logic()
+                time.sleep(5)
                 return False, cmd
 
         if not self.patrol_mode:
