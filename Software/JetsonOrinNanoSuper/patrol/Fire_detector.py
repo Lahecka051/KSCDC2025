@@ -9,12 +9,15 @@ class Fire_detector:
     self.cap0 = cap0
     self.cap1 = cap1
     self.model = YOLO("best.engine")
-    self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    self.w1, self.w2 = self.frame_width // 3, 2 * self.frame_width // 3
-    self.h1, self.h2 = self.frame_height // 3, 2 * self.frame_height // 3
+    self.frame_width0 = int(self.cap0.get(cv2.CAP_PROP_FRAME_WIDTH))
+    self.frame_height0 = int(self.cap0.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    self.frame_width1 = int(self.cap1.get(cv2.CAP_PROP_FRAME_WIDTH))
+    self.frame_height1 = int(self.cap1.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    self.center_frame_x1 = self.frame_width1 // 2
+    self.center_frame_y1 = self.frame_height1 // 2
     self.class_names = self.model.names
-    
+
+    # --- fire gps에 사용되는 변수 ---
     self.observing = False
     self.start_time = None
     self.last_detection = None
@@ -22,31 +25,25 @@ class Fire_detector:
     self.FIRE_CONFIRMATION_DURATION = 3 #화제 판정을 위한 연속 감지 시간
     self.OBSERVATIOPN_TIMEOUT = 5
 
-  def get_position_command(self, x, y):
-        if y < self.h1: vertical = "위"
-        elif y < self.h2: vertical = "가운데"
-        else: vertical = "아래"
-        if x < self.w1: horizontal = "왼쪽"
-        elif x < self.w2: horizontal = "가운데"
-        else: horizontal = "오른쪽"
-        mapping = {
-            ("위","왼쪽"): ["level","forward_left",0,10],
-            ("위","가운데"): ["level","forward",0,10],
-            ("위","오른쪽"): ["level","forward_right",0,10],
-            ("가운데","왼쪽"): ["level","left",0,10],
-            ("가운데","가운데"): ["level","hover",0,10],
-            ("가운데","오른쪽"): ["level","right",0,10],
-            ("아래","왼쪽"): ["level","backward_left",0,10],
-            ("아래","가운데"): ["level","backward",0,10],
-            ("아래","오른쪽"): ["level","backward_right",0,10]
-        }
-        return mapping.get((vertical,horizontal),None)
+    # --- 드론 중앙정렬에 쓰이는 변수 ---
+    #제어 상수 (튜닝 필요)
+    self.Kp_x = 0.05 
+    self.Kp_y = 0.05
+    self.threshold = 10
+    # 순찰 관련 변수
+    self.patrol_mode = True
+    self.patrol_state = 'top'
+    self.last_move_time = time.time()
+    self.move_duration = 3  # 각 방향으로 이동하는 시간 (초)
+    self.is_moving = False
+    self.patrol_laps = 0
+    self.max_patrol_laps = 2 # 최대 순찰 바퀴 수
 
      # 화재 지점 GPS 추정 함수
     def fire_gps(self, drone_gps, center_x, center_y):               
       # 화재 지점의 각도 계산 (가정: 카메라 시야각 90도, 프레임 중심에서 픽셀당 각도 계산)
-      frame_center_x, frame_center_y = self.frame_width // 2, self.frame_height // 2
-      pixels_per_degree = self.frame_width / 90.0
+      frame_center_x, frame_center_y = self.frame_width0 // 2, self.frame_height0 // 2
+      pixels_per_degree = self.frame_width0 / 90.0
       angle_x = (center_x - frame_center_x) / pixels_per_degree
       angle_y = (center_y - frame_center_y) / pixels_per_degree
         # 이 함수는 드론의 현재 GPS, Yaw, 피치, 롤, 고도, 그리고 카메라 시야각을
@@ -118,4 +115,132 @@ class Fire_detector:
           self.start_time = None
 
       return fire_confirmed, fire_coords
-          
+  
+    def patrol_logic(self):
+        """
+        사각형 순찰 로직을 수행하고, 드론 제어 명령을 반환합니다.
+        순찰이 완료되면 False를 반환합니다.
+        """
+        if self.patrol_laps >= self.max_patrol_laps:
+            print("최대 순찰 횟수 도달. 순찰 종료 및 호버링.")
+            self.patrol_mode = False
+            return ["level", "hover", 0, 0]
+
+        if time.time() - self.last_move_time > self.move_duration:
+            if self.patrol_state == 'top':
+                print("순찰: 전진")
+                cmd = ["level", "forward", 0, 30]
+                self.patrol_state = 'right'
+            elif self.patrol_state == 'right':
+                print("순찰: 우측 회전")
+                cmd = ["level", "hover", 90, 0]
+                self.patrol_state = 'bottom'
+            elif self.patrol_state == 'bottom':
+                print("순찰: 후진")
+                cmd = ["level", "backward", 0, 30]
+                self.patrol_state = 'left'
+            elif self.patrol_state == 'left':
+                print("순찰: 좌측 회전")
+                cmd = ["level", "hover", -90, 0]
+                self.patrol_state = 'top'
+                self.patrol_laps += 1 # 한 바퀴 완료
+            self.last_move_time = time.time()
+            self.is_moving = True
+            return cmd
+        else:
+            if not self.is_moving:
+                cmd = ["level", "hover", 0, 0]
+                self.is_moving = True
+                return cmd
+        return None # 명령이 없을 경우
+
+    def align_drone_to_object(self):
+        """
+        하단 카메라에 잡힌 객체 중심에 드론을 일치시키는 메서드.
+        단일 프레임을 처리하고 명령어를 반환합니다.
+
+        Returns:
+            tuple: (정렬 완료 여부, 드론 제어 명령어)
+        """
+        ret, frame = self.cap1.read()
+        if not ret:
+            print("하단 카메라 프레임을 읽을 수 없습니다.")
+            return (False, ["level", "hover", 0, 0])
+
+        results = self.model.predict(frame, imgsz=640, conf=0.4, verbose=False)
+        
+        is_target_detected = False
+        best_box = None
+        if len(results[0].boxes) > 0:
+            best_box = max(results[0].boxes, key=lambda box: box.conf[0])
+            class_name = self.class_names[int(best_box.cls[0])]
+            if class_name.lower() in self.target_classes:
+                is_target_detected = True
+
+        # 순찰 모드일 때
+        if self.patrol_mode:
+            if is_target_detected:
+                print(f"특정 객체 '{class_name}' 감지 성공. 정렬 모드로 전환.")
+                self.patrol_mode = False
+            else:
+                # 객체가 없으면 순찰 로직 실행
+                cmd = self.patrol_logic()
+                return (False, cmd)
+
+        # 정렬 모드일 때
+        if not self.patrol_mode:
+            if not is_target_detected:
+                print("정렬 중 객체 탐지 실패. 순찰 모드로 전환.")
+                self.patrol_mode = True
+                self.patrol_state = 'top'
+                self.patrol_laps = 0
+                self.last_move_time = time.time()
+                cmd = self.patrol_logic()
+                return (False, cmd)
+            
+            # 정렬 로직
+            x1, y1, x2, y2 = best_box.xyxy[0]
+            center_x = int((x1 + x2) / 2)
+            center_y = int((y1 + y2) / 2)
+            
+            error_x = center_x - self.center_frame_x
+            error_y = center_y - self.center_frame_y
+            
+            if abs(error_x) < self.threshold and abs(error_y) < self.threshold:
+                print(f"✅ 정렬 완료! 오차: ({error_x}, {error_y})")
+                self.patrol_mode = True
+                self.patrol_laps = 0
+                return (True, ["level", "hover", 0, 0])
+            
+            speed_x = int(abs(error_x) * self.Kp_x)
+            speed_y = int(abs(error_y) * self.Kp_y)
+            
+            speed_x = max(10, min(80, speed_x))
+            speed_y = max(10, min(80, speed_y))
+            #===================수정이 필요한 부분======================
+            # 오차가 작으면 이동하지 않도록 로직을 간소화
+            if abs(error_x) <= self.threshold:
+                horizontal_cmd = "hover"
+            else:
+                horizontal_cmd = "right" if error_x > 0 else "left"
+            
+            if abs(error_y) <= self.threshold:
+                vertical_cmd = "hover"
+            else:
+                vertical_cmd = "forward" if error_y > 0 else "backward"
+
+            # 호버링 명령은 이미 정렬 완료 조건에서 처리되었으므로,
+            # 여기서는 이동 명령만 반환합니다.
+            print(f"오차: ({error_x}, {error_y}), 명령: {vertical_cmd}, {horizontal_cmd}")
+            if horizontal_cmd == "hover" and vertical_cmd != "hover":
+                return (False, ["level", vertical_cmd, 0, speed_y])
+            elif horizontal_cmd != "hover" and vertical_cmd == "hover":
+                return (False, ["level", horizontal_cmd, 0, speed_x])
+            else:
+                return (False, ["level", f"{vertical_cmd}_{horizontal_cmd}", 0, max(speed_x, speed_y)])
+          #======================================================
+        else:
+            print("특정 객체 탐지 실패. 순찰 모드로 유지.")
+            self.patrol_mode = True
+            cmd = self.patrol_logic()
+            return (False, cmd)
