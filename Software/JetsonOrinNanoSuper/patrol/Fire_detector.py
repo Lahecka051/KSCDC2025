@@ -246,3 +246,22 @@ class Fire_detector:
             self.patrol_mode = True
             cmd = self.patrol_logic()
             return False, cmd
+
+def capture_and_save_image(output_path="captured_image.jpg"):
+    """
+    CSI 카메라로 사진을 찍어 지정된 경로에 저장합니다.
+    """
+    if not cap1.isOpened():
+        print("오류: 카메라를 열 수 없습니다. 카메라 연결 및 파이프라인 설정을 확인해주세요.")
+        return False
+    ret, frame = cap1.read()
+
+    if ret:
+        cv2.imwrite(output_path, frame)
+        print(f"사진이 성공적으로 촬영되어 {output_path}에 저장되었습니다.")
+        cap.release()
+        return
+    else:
+        print("오류: 프레임을 읽을 수 없습니다.")
+        cap.release()
+        return
