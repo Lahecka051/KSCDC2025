@@ -47,7 +47,7 @@ def main():
                     mission_thread = threading.Thread(target=run_extinguish_mission, args=(target,), daemon=True)   #화제 진압 알고리즘 run_extinguish_mission에 넣기
                     mission_thread.start()
                 elif isinstance(command_data, list):
-                    mission_thread = threading.Thread(target=run_mission, args=(command_data,), daemon=True)    #순찰 알고리즘 run_mission에 넣기
+                    mission_thread = threading.Thread(target=patrol.run, args=(command_data,), daemon=True)    #순찰 알고리즘 run_mission에 넣기
                     mission_thread.start()
                 else:
                     print(f"알 수 없는 형식의 명령 수신: {command_data}")
@@ -57,3 +57,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
