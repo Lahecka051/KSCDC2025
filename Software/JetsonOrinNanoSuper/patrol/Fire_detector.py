@@ -39,6 +39,8 @@ class Fire_detector:
     self.patrol_laps = 0
     self.max_patrol_laps = 2 # 최대 순찰 바퀴 수
 
+    self.target_classes = ['fire', 'smoke']  #화제탐지 특정객체 지정
+
      # 화재 지점 GPS 추정 함수
     def fire_gps(self, drone_gps, center_x, center_y):               
       # 화재 지점의 각도 계산 (가정: 카메라 시야각 90도, 프레임 중심에서 픽셀당 각도 계산)
@@ -167,7 +169,7 @@ class Fire_detector:
             print("하단 카메라 프레임을 읽을 수 없습니다.")
             return (False, ["level", "hover", 0, 0])
 
-        results = self.model.predict(frame, imgsz=640, conf=0.4, verbose=False)
+        results = self.model.predict(frame, imgsz=960, conf=0.4, verbose=False)
         
         is_target_detected = False
         best_box = None
