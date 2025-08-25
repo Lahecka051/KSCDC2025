@@ -11,3 +11,6 @@
 
 - gps데이터 (위도,경도,(고도 or None)) 를 받으면  드론 이동
 
+- 참고 github
+- https://github.com/ArduPilot/pymavlink/blob/master/mavutil.py
+
