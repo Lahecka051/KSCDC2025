@@ -87,7 +87,7 @@ class App:
         # --- 지도 위젯 및 변수 초기화 ---
         self.map_widget = TkinterMapView(self.map_frame, width=600, height=500, corner_radius=0)
         self.map_widget.pack(fill="both", expand=True)
-        self.map_widget.set_position(37.5665, 126.9780) # 초기 위치: 서울 시청
+        self.map_widget.set_position(35.1422, 129.0968) # 초기 위치: 경성대 공대
         self.map_widget.set_zoom(15)
         self.map_widget.add_right_click_menu_command(label="여기에 경로점 추가", command=self.add_waypoint_by_click, pass_coords=True)
         
@@ -336,3 +336,4 @@ if __name__ == "__main__":
     root = tkinter.Tk()  # 메인 GUI 윈도우 생성
     app = App(root)      # App 클래스의 인스턴스 생성 (프로그램 시작)
     root.mainloop()      # GUI 이벤트 루프 시작 (창이 닫히기 전까지 계속 실행)
+
