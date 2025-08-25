@@ -11,7 +11,7 @@ class Fire_extinguishing():
         self.landing = landing
         self.communicator = communicator
 
-    def drop_ball(self);
+    def drop_ball(self):
 
     def run(self,target):
         #여기에 gps(target) 지점으로 이동하는 함수 이동 완료시 전까지 다음 while 문으로 안넘어가야함
