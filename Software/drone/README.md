@@ -12,3 +12,11 @@
 ### pipeline.py
 - CSI카메라 사용을 위한 pipeline 생성 함수
 - 해상도 1280x720 프레임사이즈 960x960
+
+### Fire_detector.py
+- 화제 탐지 및 화제현장바로 위로 정렬 담당
+- fire_gps(drone_gps, center_x, center_y) : 현제 위치를 기반으로 화제 위치 계산
+- detect_fire_upper(drone_gps) : 순찰시 객체 인식을 담당
+- patrol_logic() : 화제지점 주변 정찰 사각형 모양으로 순찰
+- align_drone_to_object() : 화제 바로 위로 정렬 시키는 함수
+- capture_and_save_image(output_path="captured_image.jpg") : 아래쪽 카메라로 사진을 찍어 지정된 경로에 저장
