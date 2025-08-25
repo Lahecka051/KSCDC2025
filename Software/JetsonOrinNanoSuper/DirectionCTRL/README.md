@@ -2,7 +2,7 @@
 ## == 순찰 need Input data == (List)
 - [vertical, horizontal1, horizontal2, rotation] 형식
 - drone.set_command(vertical, horizontal, rotation, speed)
-- vertical = (up, level, down (택1)
+- vertical = (up, 0, down) (택1)  (+)값일때 up (+)값 m/s, (-)값일때 down (-)값 m/s
 - horizontal1 = (forward, 0, backward) (택1) (+)값일때 forward (+)값 m/s, (-)값일때 backward (-)값 m/s
 - horizontal2 = (left, 0, right) (택1) (+)값일때 left (+)값 m/s, (-)값일때 right (-)값 m/s
 - 만약 horizontal1 == horizontal2 == 0 면 hover
