@@ -10,6 +10,7 @@ from drone_communications import DroneCommunicator
 from patrol import patrol
 from Fire_detector import Fire_detector
 from Landing import Landing
+from Fire_extinguishing import Fire_extinguishing
 
 # --- 통신 모듈 객체 생성 ---
 # ❗️❗️❗️PC의 실제 이름으로 반드시 변경해주세요❗️❗️❗️
@@ -31,7 +32,10 @@ landing = Landing(cap1, drone_system)
 
 # --- 순찰 객체 생성 ---
 #Patrol(drone_system: IntegratedDroneSystem, fire_detector, landing, communicator)
-patrol = Patrol(drone_system: IntegratedDroneSystem, fire_detector, landing, communicator)
+patrol = Patrol(drone_system, fire_detector, landing, communicator)
+
+# --- 소화볼 투하 객체 생성 ---
+Fire_extinguishing = Fire_extinguishing(drone_system, fire_detector, landing, communicator)
 
 # --- 메인 로직: PC로부터 명령 수신 대기 ---
 def main():
@@ -44,7 +48,7 @@ def main():
 
                 if isinstance(command_data, dict) and command_data.get('type') == 'EXTINGUISH':
                     target = command_data.get('target')
-                    mission_thread = threading.Thread(target=run_extinguish_mission, args=(target,), daemon=True)   #화제 진압 알고리즘 run_extinguish_mission에 넣기
+                    mission_thread = threading.Thread(target=Fire_extinguishing.run, args=(target,), daemon=True)   #화제 진압 알고리즘 run_extinguish_mission에 넣기
                     mission_thread.start()
                 elif isinstance(command_data, list):
                     mission_thread = threading.Thread(target=patrol.run, args=(command_data,), daemon=True)    #순찰 알고리즘 run_mission에 넣기
@@ -57,4 +61,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
