@@ -39,7 +39,7 @@ class DroneCommunicator:
         except Exception as e:
             print(f"[통신 모듈][오류] PC로 보고 전송 실패: {e}")
 
-    def send_status_update(self, status_message):
+    def send_status_update(self, status_message, ball_count):
         """PC 관제 센터로 간단한 상태 메시지를 전송합니다."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -48,6 +48,7 @@ class DroneCommunicator:
                 message_data = {
                     "type": "STATUS_UPDATE",
                     "status": status_message
+                    "ball count":ball_count
                 }
                 message_bytes = json.dumps(message_data).encode('utf-8')
                 
@@ -69,5 +70,6 @@ class DroneCommunicator:
                 print(f"\nPC({addr})로부터 연결됨. 명령 수신 중...")
                 data = conn.recv(4096)
                 return data
+
 
 
