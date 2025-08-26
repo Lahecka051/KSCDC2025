@@ -44,7 +44,7 @@ def main():
         data = communicator.receive_data()
         if data:
             try:
-                command_data = json.loads(data.decode('utf-8'))
+                command_data = json.loads(data.decode('utf-8').strip())
 
                 if isinstance(command_data, dict) and command_data.get('type') == 'EXTINGUISH':
                     target = command_data.get('target')
@@ -61,5 +61,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
