@@ -8,7 +8,7 @@ class DroneCommunicator:
     PC 관제 센터와의 모든 '클라이언트' 통신을 전담하는 클래스.
     (데이터를 '보내는' 역할)
     """
-    def __init__(self, pc_hostname, pc_port=4000):
+    def __init__(self, pc_hostname, pc_port=65524):
         """
         통신 객체를 생성할 때 접속할 PC의 주소와 포트를 설정합니다.
         """
@@ -58,7 +58,7 @@ class DroneCommunicator:
             print(f"[통신 모듈][오류] PC로 상태 보고 전송 실패: {e}")
 
     def start_receiver(self):
-        host = '0.0.0.0'; port = 3999
+        host = '0.0.0.0'; port = 65523
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as self.s:
             self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.s.bind((host, port)); s.listen()
@@ -70,6 +70,7 @@ class DroneCommunicator:
                 print(f"\nPC({addr})로부터 연결됨. 명령 수신 중...")
                 data = conn.recv(4096)
                 return data
+
 
 
 
