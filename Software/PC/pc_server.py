@@ -9,6 +9,8 @@ from PIL import Image, ImageTk
 import io
 import os
 import time
+import queue
+from pc_rpi_server import PC_RPi_Server
 
 class App:
     def __init__(self, root_widget):
@@ -96,10 +98,20 @@ class App:
         self.markers = []
         self.fire_markers = []
         self.last_fire_location = None
+
+        #라즈베리 파이 서버 관련 변수
+        self.rpi = PC_RPi_Server()
         
         # 보고 수신 서버 시작
         self.start_drone_report_server()
+        self.rpi.start()
 
+        # 소화볼 관련 변수
+        self.ball_q = queue.Queue()
+        self.ball = 0
+        self.complete = queue.Queue()
+
+        
     def handle_drone_report(self, conn, addr):
         """
         (네트워크 스레드) 드론으로부터 오는 모든 보고(화재, 상태 등)를 처리합니다.
@@ -136,10 +148,12 @@ class App:
                 elif report_type == 'STATUS_UPDATE':
                     # 상태 보고 처리
                     status = report_data.get('status')
+                    ball_count = report_data.get('ball count')
                     print(f"수신 메시지 유형: 상태 보고, 내용: {status}")
                     if status == 'EXTINGUISH_COMPLETE':
                         # GUI 상태 라벨 업데이트 예약
                         self.root.after(0, self.mission_status_label.config, {"text": "상태: 진압 완료. 복귀 확인."})
+                        self.ball_q.put(ball_count)
 
         except Exception as e:
             print(f"드론 보고 처리 중 오류 발생: {e}")
@@ -214,7 +228,7 @@ class App:
         """
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((drone_address, 3999))
+                s.connect((drone_address, 65523))
                 s.sendall(message.encode('utf-8'))
                 # 메시지 종류를 확인하여 순찰 시작일 때만 팝업 메시지 표시
                 try:
@@ -242,27 +256,40 @@ class App:
         """
         (백그라운드 스레드) 소화볼 장전을 시뮬레이션하고 드론에 진압 명령을 전송합니다.
         """
-        print("\n[관제 센터] 스테이션에 소화볼 장전 명령 전송...")
-        time.sleep(5) # 5초간 장전 시뮬레이션
-        print("[관제 센터] 소화볼 장전 완료.")
-        
-        self.root.after(0, self.mission_status_label.config, {"text": "상태: 드론 출동 명령 전송 중..."})
-        
-        drone_address = self.drone_ip_entry.get()
-        if not drone_address:
-            self.root.after(0, tkinter.messagebox.showerror, ("오류", "드론 주소를 찾을 수 없습니다."))
-            self.root.after(0, self.mission_status_label.config, {"text": "오류: 드론 주소 없음"})
-            return
-            
-        # '진압' 임무를 위한 새로운 형식의 메시지 생성
-        command = {
-            "type": "EXTINGUISH",
-            "target": self.last_fire_location
-        }
-        message = json.dumps(command)
+        tmp = None
+        try:
+            self.ball = self.ball_q.get_nowait()
+        except queue.Empty:
+            pass
 
-        self.send_command_to_drone(drone_address, message)
-        self.root.after(0, self.mission_status_label.config, {"text": "상태: 진압 임무 출동 완료!"})
+        cmd = [f"{self.ball}"]
+        self.rpi.send_command(cmd)
+        print("\n[관제 센터] 스테이션에 소화볼 장전 명령 전송...")
+        tmp = self.rpi.response_q.get()
+        if tmp:
+            print("[관제 센터] 소화볼 장전 완료.")
+            print("[STATION] :", tmp)
+            self.ball = 2
+            
+            self.root.after(0, self.mission_status_label.config, {"text": "상태: 드론 출동 명령 전송 중..."})
+            
+            drone_address = self.drone_ip_entry.get()
+            if not drone_address:
+                self.root.after(0, tkinter.messagebox.showerror, ("오류", "드론 주소를 찾을 수 없습니다."))
+                self.root.after(0, self.mission_status_label.config, {"text": "오류: 드론 주소 없음"})
+                return
+                
+            # '진압' 임무를 위한 새로운 형식의 메시지 생성
+            command = {
+                "type": "EXTINGUISH",
+                "target": self.last_fire_location
+            }
+            message = json.dumps(command)
+
+            self.send_command_to_drone(drone_address, message)
+            self.root.after(0, self.mission_status_label.config, {"text": "상태: 진압 임무 출동 완료!"})
+        else:
+            print("뭔가 잘못다 코드를 다시 확인하자!")
 
     def add_waypoint_by_click(self, coords):
         """지도에서 마우스 우클릭 시 호출되어 해당 위치에 경로점을 추가합니다."""
@@ -310,13 +337,13 @@ class App:
         
     def start_drone_report_server(self):
         """드론의 보고를 수신할 서버를 별도의 스레드에서 시작합니다."""
-        server_thread = threading.Thread(target=self.run_drone_report_server, daemon=True)
-        server_thread.start()
+        drone_server_thread = threading.Thread(target=self.run_drone_report_server, daemon=True)
+        drone_server_thread.start()
         
     def run_drone_report_server(self):
         """(네트워크 스레드) TCP 소켓 서버를 열고 드론의 연결을 무한 대기합니다."""
         host = '0.0.0.0' # 모든 IP에서의 접속을 허용
-        port = 4000
+        port = 65524
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) # 주소 재사용 옵션
             s.bind((host, port))
@@ -331,9 +358,9 @@ class App:
                 client_thread = threading.Thread(target=self.handle_drone_report, args=(conn, addr), daemon=True)
                 client_thread.start()
 
+                
 # 이 스크립트 파일이 직접 실행될 때만 아래 코드를 실행
 if __name__ == "__main__":
     root = tkinter.Tk()  # 메인 GUI 윈도우 생성
     app = App(root)      # App 클래스의 인스턴스 생성 (프로그램 시작)
     root.mainloop()      # GUI 이벤트 루프 시작 (창이 닫히기 전까지 계속 실행)
-
