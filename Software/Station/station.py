@@ -10,35 +10,35 @@ from camera_module import Docking
 # --- 1. 하드웨어 설정 ---
 GPIO.setmode(GPIO.BCM)
 
-SERVO_FB_PIN = 17
-SERVO_LR_PIN = 18
-SERVO_AMMO_PIN = 27
+SERVO_FB_PIN = 17    # 전, 후진 서보 지정
+SERVO_LR_PIN = 18    # 좌, 우 서보 지정
+SERVO_AMMO_PIN = 27  # 발 수 구분 서보 지정
 
-XSHUT_PINS = [22, 23, 24, 25]
+XSHUT_PINS = [22, 23, 24, 25]  #ToF 핀번호(현 4개)
 
-PWM_FREQUENCY = 50
+PWM_FREQUENCY = 50  #PWM 신호 주파수(50Hz)
 
 GPIO.setup(SERVO_FB_PIN, GPIO.OUT)
 GPIO.setup(SERVO_LR_PIN, GPIO.OUT)
-GPIO.setup(SERVO_AMMO_PIN, GPIO.OUT)
+GPIO.setup(SERVO_AMMO_PIN, GPIO.OUT)  # ~ 출력 모드 설정
 
 pwm_fb = GPIO.PWM(SERVO_FB_PIN, PWM_FREQUENCY)
 pwm_lr = GPIO.PWM(SERVO_LR_PIN, PWM_FREQUENCY)
-pwm_ammo = GPIO.PWM(SERVO_AMMO_PIN, PWM_FREQUENCY)
+pwm_ammo = GPIO.PWM(SERVO_AMMO_PIN, PWM_FREQUENCY)  # 각 서보 핀 PWM 인스턴스 생성 및 주파수 설정
 
 pwm_fb.start(0)
 pwm_lr.start(0)
-pwm_ammo.start(0)
+pwm_ammo.start(0)  #서보 초기 설정
 
 # --- 2. 변수 및 상수 ---
-TOLERANCE_MM_TOF = 5
-TARGET_DISTANCE_MM_TOF = 100
+TOLERANCE_MM_TOF = 5           # ToF 센서 허용 오차
+TARGET_DISTANCE_MM_TOF = 100   # 4개 ToF 센서 목표 거리
 
 # 카메라 기반 정렬 허용 오차
 TOLERANCE_PX_CAMERA = 5
 # ToF 센서 구동을 위한 카메라 기반 전진 목표 y축 위치 (조정 필요)
-# 더 작은 음수 값일수록 드론이 더 가까이 있다는 의미입니다.
-TARGET_Y_RELATIVE_PX = -100 
+# 더 작은 음수 값일수록 드론이 y축에 더 가까이 있다는 의미
+TARGET_Y_RELATIVE_PX = -100        # Dot y축 위치가 이 값 도달시 ToF 센서 정렬로 넘어감
 
 SERVO_360_STOP = 7.5
 SERVO_360_FORWARD = 8.5
@@ -46,14 +46,14 @@ SERVO_360_BACKWARD = 6.5
 SERVO_360_LEFT = 8.5
 SERVO_360_RIGHT = 6.5
 
-AMMO_LOAD_SPEED = 8.5
+AMMO_LOAD_SPEED = 8.5   # ~ DutyCycle 값
 
 # 소화탄 장전 매커니즘을 위한 변수
 # True면 2발 장전, False면 1발 장전 (Jetson과의 통신으로 결정)
 is_first_docking = True 
 
 # --- 3. 함수 정의 ---
-def setup_tof_sensors(i2c_bus, xshut_pins):
+def setup_tof_sensors(i2c_bus, xshut_pins):   # ToF 센서 순차활성, I2C 주소 재할당 -> 모두 사용
     for pin in xshut_pins:
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, GPIO.LOW)
@@ -75,7 +75,7 @@ def setup_tof_sensors(i2c_bus, xshut_pins):
             print(f"⚠️ 센서 {i+1}를 찾을 수 없거나 주소 설정에 실패했습니다. 연결을 확인하세요.")
     return sensors
 
-def get_sensor_data(sensors):
+def get_sensor_data(sensors):    # 모든 ToF 센서에서 현재 거리 측정 -> 리스트 형태 반환
     distances = []
     try:
         for tof in sensors:
@@ -85,7 +85,7 @@ def get_sensor_data(sensors):
         print(f"센서 읽기 오류: {e}")
         return [None] * len(sensors)
 
-def control_servos_tof(offset_fb, offset_lr):
+def control_servos_tof(offset_fb, offset_lr):     # ToF 센서 측정 앞뒤좌우 거리 오차 값 기반 서보 제어
     if abs(offset_fb) > TOLERANCE_MM_TOF:
         if offset_fb > 0:
             pwm_fb.ChangeDutyCycle(SERVO_360_BACKWARD)
@@ -109,7 +109,7 @@ def control_servos_tof(offset_fb, offset_lr):
         print("  -> ToF: 좌우 정렬 완료")
     time.sleep(0.1)
 
-def load_ammo(count):
+def load_ammo(count):     # 인자로 받은 횟수만큼 장전 서보 구동 -> 소화탄 장전
     print(f"\n🚀 {count}발의 소화탄을 장전합니다.")
     for i in range(count):
         print(f"  -> 장전 중... {i+1} / {count}")
@@ -174,8 +174,7 @@ if __name__ == '__main__':
         if len(tof_sensors) < 4:
             print("🚨 4개의 ToF 센서가 모두 연결되지 않았습니다. 프로그램을 종료합니다.")
         else:
-            # 소화탄 장전 발수 결정
-            # is_first_docking 변수는 Jetson에서 받은 로그를 통해 결정된다고 가정합니다.
+            # 소화탄 장전 발수 결정 @@@@@@@@@@@@@@@@@ 수정 필요 관제 센터 -> 스테이션 로그 전송 -> 발수 결정
             ammo_count = 2 if is_first_docking else 1
             print(f"-> 소화탄 장전 발수: {ammo_count} 발")
             
