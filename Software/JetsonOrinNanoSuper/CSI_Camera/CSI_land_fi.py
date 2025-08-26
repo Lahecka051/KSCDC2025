@@ -15,8 +15,6 @@ class Landing:
         self.marker_size = 100
         self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.step_x = self.frame_width // 3
-        self.step_y = self.frame_height // 3
 
         self.cmd = None
 
@@ -72,76 +70,60 @@ class Landing:
 
     def tem_match(self):
         self.cmd = None
-        for i in range(1, 3):
-            cv2.line(self.frame, (i * self.step_x, 0), (i * self.step_x, self.h), (0, 255, 0), 2)
-            cv2.line(self.frame, (0, i * self.step_y), (self.w, i * self.step_y), (0, 255, 0), 2)
-            
+        
+        # 화면 중앙 좌표
+        center_x = self.frame_width // 2
+        center_y = self.frame_height // 2
+
+        # 화면 중앙에 + 표시 (디버그용)
+        cv2.line(self.frame, (center_x, center_y - 20), (center_x, center_y + 20), (255, 0, 0), 2)
+        cv2.line(self.frame, (center_x - 20, center_y), (center_x + 20, center_y), (255, 0, 0), 2)
+
+        # 마커 탐지
         self.marker_center = self.detect_red_dot()
         
         if self.marker_center is not None:
-            col = self.marker_center[0] // self.step_x + 1
-            row = self.marker_center[1] // self.step_y + 1
-            position = (row - 1) * 3 + col # 전체 9분할 기준 영역 번호
-
-            outer_cmds = {
-                1: ["level", "forward_left", 0, 10],
-                2: ["level", "forward", 0, 10],
-                3: ["level", "forward_right", 0, 10],
-                4: ["level", "left", 0, 10],
-                6: ["level", "right", 0, 10],
-                7: ["level", "backward_left", 0, 10],
-                8: ["level", "backward", 0, 10],
-                9: ["level", "backward_right", 0, 10]
-            }
-
-            if position in outer_cmds:
-                self.cmd = outer_cmds[position]
-                print(f"마커 감지 -> 전체 9분할 {position}번 영역/ 명령: {self.cmd}")
-
-            elif position == 5:
-                center_x_start = self.step_x
-                center_y_start = self.step_y
-                center_w = self.step_x
-                center_h = self.step_y
-
-                sub_step_x = center_w // 3
-                sub_step_y = center_h // 3
-
-                relative_x = self.marker_center[0] - center_x_start
-                relative_y = self.marker_center[1] - center_y_start
-
-                sub_col = relative_x // sub_step_x + 1
-                sub_row = relative_y // sub_step_y + 1
-                sub_position = (sub_row - 1) * 3 + sub_col   # 중앙 영역 9분할 내부 영역 판단
-
-                inner_cmds = {
-                    1: ["level", "forward_left", 0, 5],
-                    2: ["level", "forward", 0, 5],
-                    3: ["level", "forward_right", 0, 5],
-                    4: ["level", "left", 0, 5],
-                    5: ["level", "stop", 0, 5],
-                    6: ["level", "right", 0, 5],
-                    7: ["level", "backward_left", 0, 5],
-                    8: ["level", "backward", 0, 5],
-                    9: ["level", "backward_right", 0, 5]
-                }
-
-                self.cmd = inner_cmds.get(sub_position)
-                print(f"마커 감지 -> 전체 9분할 5번 영역 -> 내부 9분할 {sub_position}번 영역 / 명령: {self.cmd}")
-
-                for i in range(1, 3):
-                    cv2.line(self.frame, (center_x_start + i * sub_step_x, center_y_start),
-                             (center_x_start + i * sub_step_x, center_y_start + center_h), (0, 255, 255), 1)
-                    cv2.line(self.frame, (center_x_start, center_y_start + i * sub_step_y),
-                             (center_x_start + center_w, center_y_start + i * sub_step_y), (0, 255, 255), 1)
+            # 마커의 상대적 위치 계산
+            x_diff = self.marker_center[0] - center_x
+            y_diff = self.marker_center[1] - center_y
             
+            # 오차 허용 범위 설정 (픽셀)
+            CENTER_TOLERANCE_PX = 15
+
+            # 명령 결정
+            x_cmd = ""
+            y_cmd = ""
+            
+            if abs(x_diff) > CENTER_TOLERANCE_PX:
+                if x_diff > 0:
+                    x_cmd = "right"
+                else:
+                    x_cmd = "left"
+            
+            if abs(y_diff) > CENTER_TOLERANCE_PX:
+                if y_diff > 0:
+                    y_cmd = "backward"
+                else:
+                    y_cmd = "forward"
+                    
+            if x_cmd and y_cmd:
+                self.cmd = ["level", f"{y_cmd}_{x_cmd}", 0, 5]
+                print(f"마커 감지 -> x:{x_diff}, y:{y_diff} / 명령: {self.cmd[1]}")
+            elif x_cmd:
+                self.cmd = ["level", x_cmd, 0, 5]
+                print(f"마커 감지 -> x:{x_diff}, y:{y_diff} / 명령: {self.cmd[1]}")
+            elif y_cmd:
+                self.cmd = ["level", y_cmd, 0, 5]
+                print(f"마커 감지 -> x:{x_diff}, y:{y_diff} / 명령: {self.cmd[1]}")
             else:
-                print(f"마커 감지 -> 위치 알 수 없음 (position: {position})")
+                self.cmd = ["level", "stop", 0, 5]
+                print("마커 감지 -> 완벽한 매칭 / 명령: stop")
+                
         else:
+            self.cmd = None
             print("마커 없음")
-
+            
         cv2.imshow("Frame with Red Dot Detection", self.frame)
-
         return self.cmd
 
     def run(self):
