@@ -1,17 +1,15 @@
 """
-drone_controller_shared.py
-다른 모듈에서 공유 가능한 드론 컨트롤러
-싱글톤 패턴으로 하나의 드론 인스턴스만 생성
+drone_controller.py
+드론 컨트롤러 - 수치 기반 속도 제어
 """
 
 from pymavlink import mavutil
 import time
 import math
 import threading
-import atexit
 
 class DroneCommandController:
-    """원본 DroneCommandController 클래스"""
+    """드론 컨트롤러 클래스"""
     
     def __init__(self, connection_string='/dev/ttyTHS1', baudrate=115200):
         self.connection_string = connection_string
@@ -31,22 +29,13 @@ class DroneCommandController:
         self.position_y = 0.0
         self.position_z = 0.0
         
-        # 속도 설정
-        self.VERTICAL_SPEED = 0.5
-        self.HORIZONTAL_SPEED = 1.0
-        self.ROTATION_SPEED = 30.0
-        
-        # 거리 제어
-        self.distance_control_active = False
-        self.start_position = None
-        self.target_distance = 0
-        self.movement_direction = None
-        self.distance_thread = None
+        # 속도 제한
+        self.MAX_SPEED = 10.0  # 최대 속도 10m/s
         
         # 제어 스레드
         self.control_thread = None
         self.control_active = False
-        self.current_command = ["level", "stay", 0, 0]
+        self.current_command = [0, 0, 0, 0]  # [vertical, horizontal1, horizontal2, rotation]
         
         # 긴급 호버링
         self.emergency_hover_active = False
@@ -117,8 +106,133 @@ class DroneCommandController:
         monitor_thread = threading.Thread(target=monitor, daemon=True)
         monitor_thread.start()
     
+    def set_command(self, vertical=0, horizontal1=0, horizontal2=0, rotation=0):
+        """
+        이동 명령 설정
+        
+        Args:
+            vertical: 수직 속도 (m/s) - 양수:상승, 음수:하강, 0:유지 (최대 ±10)
+            horizontal1: 전후 속도 (m/s) - 양수:전진, 음수:후진, 0:유지 (최대 ±10)
+            horizontal2: 좌우 속도 (m/s) - 양수:좌측, 음수:우측, 0:유지 (최대 ±10)
+            rotation: 회전 각도 (0-359도) - 시계방향
+        
+        Examples:
+            drone.set_command(1.0, 0, 0, 0)      # 1m/s 상승
+            drone.set_command(-0.5, 0, 0, 0)     # 0.5m/s 하강
+            drone.set_command(0, 2.0, 0, 0)      # 2m/s 전진
+            drone.set_command(0, -1.0, 0, 0)     # 1m/s 후진
+            drone.set_command(0, 0, 1.5, 0)      # 1.5m/s 좌측
+            drone.set_command(0, 0, -1.5, 0)     # 1.5m/s 우측
+            drone.set_command(0, 1.0, 1.0, 0)    # 전진+좌측 대각선
+            drone.set_command(0, 0, 0, 90)       # 90도 회전
+            drone.set_command(0, 0, 0, 0)        # 호버링
+        """
+        
+        if self.emergency_hover_active:
+            print("[드론] ⚠️ 긴급 호버링 중 - 명령 무시")
+            return False
+        
+        if not self.is_armed:
+            print("[드론] ⚠️ 시동이 꺼져있음")
+            return False
+        
+        # 속도 제한 (최대 10m/s)
+        vertical = max(-self.MAX_SPEED, min(self.MAX_SPEED, vertical))
+        horizontal1 = max(-self.MAX_SPEED, min(self.MAX_SPEED, horizontal1))
+        horizontal2 = max(-self.MAX_SPEED, min(self.MAX_SPEED, horizontal2))
+        
+        # 회전 각도 정규화 (0-359)
+        rotation = rotation % 360
+        
+        # 명령 저장
+        self.current_command = [vertical, horizontal1, horizontal2, rotation]
+        
+        # 제어 루프 시작
+        if not self.control_active:
+            self.start_control()
+        
+        # 속도 명령 전송
+        self._send_velocity_command(vertical, horizontal1, horizontal2)
+        
+        # 회전 명령
+        if rotation != 0:
+            self._send_rotation_command(rotation)
+        
+        # 상태 출력
+        status = self._get_command_description(vertical, horizontal1, horizontal2, rotation)
+        print(f"[드론] 명령: {status}")
+        print(f"        [V:{vertical:+.1f}, H1:{horizontal1:+.1f}, H2:{horizontal2:+.1f}, R:{rotation}°]")
+        
+        return True
+    
+    def _get_command_description(self, v, h1, h2, r):
+        """명령 설명 생성"""
+        parts = []
+        
+        # 수직
+        if v > 0:
+            parts.append(f"상승 {v:.1f}m/s")
+        elif v < 0:
+            parts.append(f"하강 {abs(v):.1f}m/s")
+        
+        # 전후
+        if h1 > 0:
+            parts.append(f"전진 {h1:.1f}m/s")
+        elif h1 < 0:
+            parts.append(f"후진 {abs(h1):.1f}m/s")
+        
+        # 좌우
+        if h2 > 0:
+            parts.append(f"좌측 {h2:.1f}m/s")
+        elif h2 < 0:
+            parts.append(f"우측 {abs(h2):.1f}m/s")
+        
+        # 회전
+        if r != 0:
+            parts.append(f"회전 {r}°")
+        
+        # 호버링
+        if v == 0 and h1 == 0 and h2 == 0 and r == 0:
+            return "호버링"
+        
+        return " + ".join(parts) if parts else "유지"
+    
+    def _send_velocity_command(self, vertical, horizontal1, horizontal2):
+        """속도 명령 전송"""
+        # NED 좌표계 변환
+        # North (전진+), East (우측+), Down (하강+)
+        vx = horizontal1   # 전진(+) / 후진(-)
+        vy = -horizontal2  # 좌측(+) → East(-) / 우측(-) → East(+)
+        vz = -vertical     # 상승(+) → Down(-) / 하강(-) → Down(+)
+        
+        self.master.mav.set_position_target_local_ned_send(
+            0,  # time_boot_ms
+            self.master.target_system,
+            self.master.target_component,
+            mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,  # 드론 기준 좌표
+            0b0000111111000111,  # 속도만 제어
+            0, 0, 0,  # 위치 (사용 안함)
+            vx, vy, vz,  # 속도 (m/s)
+            0, 0, 0,  # 가속도 (사용 안함)
+            0, 0  # yaw, yaw_rate
+        )
+    
+    def _send_rotation_command(self, angle):
+        """회전 명령 전송"""
+        self.master.mav.command_long_send(
+            self.master.target_system,
+            self.master.target_component,
+            mavutil.mavlink.MAV_CMD_CONDITION_YAW,
+            0,
+            angle,  # 목표 각도
+            30.0,   # 회전 속도 (도/초)
+            1,      # 시계방향
+            1,      # 상대 각도
+            0, 0, 0
+        )
+    
     def emergency_hover(self, reason="외부 요청"):
-        """긴급 호버링"""
+        """긴급 호버링 (GUIDED 모드 유지)"""
         if not self.is_armed:
             print("[드론] ⚠️ 시동이 꺼져있음")
             return False
@@ -127,41 +241,33 @@ class DroneCommandController:
         print(f"🚨 긴급 호버링 - {reason}")
         print("="*60)
         
+        # 긴급 호버링 활성화
         self.emergency_hover_active = True
-        self.distance_control_active = False
-        self.control_active = False
-        self.current_command = ["level", "stay", 0, 0]
         
-        for _ in range(5):
+        # 현재 명령 취소 (속도 0으로 설정)
+        self.current_command = [0, 0, 0, 0]
+        
+        # 즉시 정지 명령 전송 (GUIDED 모드 유지)
+        print("[드론] GUIDED 모드 유지하며 속도 0 설정")
+        for _ in range(10):  # 여러 번 전송하여 확실하게 정지
             self._send_velocity_command(0, 0, 0)
             time.sleep(0.05)
         
-        try:
-            self.master.mav.set_mode_send(
-                self.master.target_system,
-                mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                5  # LOITER
-            )
-            print("[드론] ✅ LOITER 모드")
-        except:
-            try:
-                self.master.mav.set_mode_send(
-                    self.master.target_system,
-                    mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                    2  # ALT_HOLD
-                )
-                print("[드론] ✅ ALT_HOLD 모드")
-            except:
-                pass
+        print("[드론] ✅ 속도 명령 취소 - 호버링 중")
         
+        # 현재 위치 출력
         print(f"📍 호버링 위치:")
         print(f"   고도: {self.current_altitude:.2f}m")
         print(f"   GPS: ({self.current_lat:.6f}, {self.current_lon:.6f})")
+        print(f"   모드: GUIDED (유지)")
         
+        # 잠시 대기
         time.sleep(2)
+        
+        # 긴급 호버링 해제 (다시 명령 받을 준비)
         self.emergency_hover_active = False
         
-        print("[드론] ✅ 긴급 호버링 완료")
+        print("[드론] ✅ 긴급 호버링 완료 - 새 명령 대기")
         return True
     
     def arm(self):
@@ -185,25 +291,19 @@ class DroneCommandController:
         for _ in range(10):
             if self.is_armed:
                 print("[드론] ✅ 시동 걸림")
-                self._reset_position()
                 return True
             time.sleep(1)
         
         print("[드론] ❌ 시동 실패")
         return False
     
-    def _reset_position(self):
-        """위치 초기화"""
-        time.sleep(1)
-        self.start_position = (self.position_x, self.position_y, self.position_z)
-        print(f"[드론] 위치 초기화: ({self.position_x:.2f}, {self.position_y:.2f})")
-    
     def disarm(self):
         """시동 끄기"""
         print("[드론] 시동 끄기...")
         
-        self.stop_control()
-        self.stop_distance_control()
+        self.control_active = False
+        if self.control_thread:
+            self.control_thread.join(timeout=1)
         
         self.master.mav.command_long_send(
             self.master.target_system,
@@ -236,43 +336,11 @@ class DroneCommandController:
             time.sleep(0.5)
         
         print(f"\n[드론] ✅ 이륙 완료: {self.current_altitude:.2f}m")
-        self._reset_position()
-        return True
-    
-    def set_command(self, vertical="level", horizontal="stay", rotation=0, distance=0):
-        """이동 명령"""
-        if self.emergency_hover_active:
-            print("[드론] ⚠️ 긴급 호버링 중 - 명령 무시")
-            return False
-        
-        if not self.is_armed:
-            print("[드론] ⚠️ 시동이 꺼져있음")
-            return False
-        
-        self.current_command = [vertical, horizontal, rotation, distance]
-        
-        if distance > 0 and horizontal != "stay":
-            self._start_distance_control(vertical, horizontal, rotation, distance)
-        else:
-            self.stop_distance_control()
-            
-            if not self.control_active:
-                self.start_control()
-            
-            vx, vy, vz = self._calculate_velocity(vertical, horizontal)
-            self._send_velocity_command(vx, vy, vz)
-            
-            if rotation != 0:
-                self._send_rotation_command(rotation)
-        
-        print(f"[드론] 명령: [{vertical}, {horizontal}, {rotation}°, {distance}m]")
         return True
     
     def land(self):
         """착륙"""
         print("[드론] 착륙 중...")
-        
-        self.stop_distance_control()
         
         self.master.mav.set_mode_send(
             self.master.target_system,
@@ -299,178 +367,50 @@ class DroneCommandController:
             'command': self.current_command
         }
     
-    # === Private 메서드들 ===
-    
-    def _start_distance_control(self, vertical, horizontal, rotation, distance):
-        if self.emergency_hover_active:
-            return
-        
-        self.stop_control()
-        self.stop_distance_control()
-        
-        self.start_position = (self.position_x, self.position_y, self.position_z)
-        self.target_distance = distance
-        self.movement_direction = (vertical, horizontal, rotation)
-        self.distance_control_active = True
-        
-        print(f"[드론] 거리 제어: {distance}m 이동 시작")
-        
-        self.distance_thread = threading.Thread(target=self._distance_control_loop, daemon=True)
-        self.distance_thread.start()
-    
-    def _distance_control_loop(self):
-        vertical, horizontal, rotation = self.movement_direction
-        
-        if rotation != 0:
-            self._send_rotation_command(rotation)
-            time.sleep(2)
-        
-        while self.distance_control_active and not self.emergency_hover_active:
-            moved_distance = self._calculate_moved_distance()
-            remaining = self.target_distance - moved_distance
-            
-            print(f"  이동: {moved_distance:.2f}m / {self.target_distance}m", end='\r')
-            
-            if moved_distance >= self.target_distance * 0.95:
-                print(f"\n[드론] ✅ 목표 도달: {moved_distance:.2f}m")
-                self.stop_distance_control()
-                self._send_velocity_command(0, 0, 0)
-                break
-            
-            speed_factor = remaining / 0.5 if remaining < 0.5 else 1.0
-            
-            vx, vy, vz = self._calculate_velocity(vertical, horizontal)
-            self._send_velocity_command(vx * speed_factor, vy * speed_factor, vz * speed_factor)
-            
-            time.sleep(0.1)
-    
-    def _calculate_moved_distance(self):
-        if not self.start_position:
-            return 0
-        
-        dx = self.position_x - self.start_position[0]
-        dy = self.position_y - self.start_position[1]
-        
-        return math.sqrt(dx**2 + dy**2)
-    
-    def stop_distance_control(self):
-        self.distance_control_active = False
-        if self.distance_thread:
-            self.distance_thread.join(timeout=1)
-    
-    def _calculate_velocity(self, vertical, horizontal):
-        vz = 0
-        if vertical == "up":
-            vz = -self.VERTICAL_SPEED
-        elif vertical == "down":
-            vz = self.VERTICAL_SPEED
-        
-        vx, vy = 0, 0
-        
-        velocity_map = {
-            "forward": (self.HORIZONTAL_SPEED, 0),
-            "backward": (-self.HORIZONTAL_SPEED, 0),
-            "left": (0, -self.HORIZONTAL_SPEED),
-            "right": (0, self.HORIZONTAL_SPEED),
-            "forward_left": (self.HORIZONTAL_SPEED * 0.707, -self.HORIZONTAL_SPEED * 0.707),
-            "forward_right": (self.HORIZONTAL_SPEED * 0.707, self.HORIZONTAL_SPEED * 0.707),
-            "backward_left": (-self.HORIZONTAL_SPEED * 0.707, -self.HORIZONTAL_SPEED * 0.707),
-            "backward_right": (-self.HORIZONTAL_SPEED * 0.707, self.HORIZONTAL_SPEED * 0.707),
-        }
-        
-        if horizontal in velocity_map:
-            vx, vy = velocity_map[horizontal]
-        
-        return vx, vy, vz
-    
-    def _send_velocity_command(self, vx, vy, vz):
-        self.master.mav.set_position_target_local_ned_send(
-            0,
-            self.master.target_system,
-            self.master.target_component,
-            mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,
-            0b0000111111000111,
-            0, 0, 0,
-            vx, vy, vz,
-            0, 0, 0,
-            0, 0
-        )
-    
-    def _send_rotation_command(self, angle):
-        self.master.mav.command_long_send(
-            self.master.target_system,
-            self.master.target_component,
-            mavutil.mavlink.MAV_CMD_CONDITION_YAW,
-            0,
-            angle,
-            self.ROTATION_SPEED,
-            1, 1,
-            0, 0, 0
-        )
-    
     def start_control(self):
+        """제어 루프 시작"""
         self.control_active = True
         
         def control_loop():
             while self.control_active:
-                if self.emergency_hover_active or self.distance_control_active:
-                    time.sleep(0.2)
+                if self.emergency_hover_active:
+                    # 긴급 호버링 중에는 계속 속도 0 전송
+                    self._send_velocity_command(0, 0, 0)
+                    time.sleep(0.1)
                     continue
                 
-                vertical, horizontal, rotation, _ = self.current_command
+                v, h1, h2, r = self.current_command
                 
-                if horizontal != "stay" or vertical != "level":
-                    vx, vy, vz = self._calculate_velocity(vertical, horizontal)
-                    self._send_velocity_command(vx, vy, vz)
+                # 속도 명령 지속 전송
+                if v != 0 or h1 != 0 or h2 != 0:
+                    self._send_velocity_command(v, h1, h2)
                 
-                time.sleep(0.2)
+                time.sleep(0.1)  # 10Hz
         
         self.control_thread = threading.Thread(target=control_loop, daemon=True)
         self.control_thread.start()
-    
-    def stop_control(self):
-        self.control_active = False
-        if self.control_thread:
-            self.control_thread.join(timeout=1)
 
 
-# ========== 싱글톤 드론 매니저 ==========
-
-class DroneManager:
-    """싱글톤 패턴으로 드론 인스턴스 관리"""
+# 테스트 코드
+if __name__ == "__main__":
+    drone = DroneCommandController()
+    drone.connect()
     
-    _instance = None
-    _drone = None
+    # 테스트 예시
+    drone.takeoff(2.0)
+    time.sleep(2)
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(DroneManager, cls).__new__(cls)
-        return cls._instance
+    # 전진 중
+    drone.set_command(0, 2.0, 0, 0)
+    time.sleep(2)
     
-    def get_drone(self):
-        """드론 인스턴스 반환 (없으면 생성)"""
-        if self._drone is None:
-            self._drone = DroneCommandController()
-            self._drone.connect()
-            
-            # 프로그램 종료시 자동 정리
-            atexit.register(self._cleanup)
-            
-        return self._drone
+    # 긴급 호버링 (GUIDED 모드 유지)
+    drone.emergency_hover("테스트")
+    time.sleep(3)
     
-    def _cleanup(self):
-        """프로그램 종료시 정리"""
-        if self._drone and self._drone.is_armed:
-            print("\n[매니저] 프로그램 종료 - 안전 착륙")
-            try:
-                self._drone.land()
-                self._drone.disarm()
-            except:
-                pass
-
-
-# 전역 드론 인스턴스 생성 함수
-def get_drone():
-    """전역 드론 인스턴스 반환"""
-    manager = DroneManager()
-    return manager.get_drone()
+    # 다시 명령 가능
+    drone.set_command(0, 1.0, 0, 0)
+    time.sleep(2)
+    
+    drone.land()
+    drone.disarm()
