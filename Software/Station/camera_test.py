@@ -1,144 +1,139 @@
-# camera_module.py
-
 import cv2
 import numpy as np
+import platform
 import time
 
+# 빨간 점이 y축에 있다고 판단하는 허용 오차 (픽셀)
+X_AXIS_TOLERANCE = 5
+
 def gstreamer_pipeline(
-    capture_width=1280,
-    capture_height=720,
-    display_width=960,
-    display_height=540,
     framerate=30,
     flip_method=0,
 ):
     """
     라즈베리 파이 CSI 카메라용 GStreamer 파이프라인
-    - libcamerasrc: Raspberry Pi OS에서 권장되는 최신 카메라 소스
+    - 기본 해상도를 사용하고, 이후 프레임을 크롭하여 정사각형으로 만듭니다.
     """
     return (
         f"libcamerasrc ! "
-        f"video/x-raw, width=(int){capture_width}, height=(int){capture_height}, framerate=(fraction){framerate}/1 ! "
+        f"video/x-raw, framerate=(fraction){framerate}/1 ! "
         f"videoflip method={flip_method} ! "
         f"videoconvert ! "
-        f"video/x-raw, width=(int){display_width}, height=(int){display_height}, format=(string)BGR ! appsink"
+        f"video/x-raw, format=(string)BGR ! appsink"
     )
 
-class Docking:
-    def __init__(self, marker_path="/home/kscdc2025/Marker.png"):
-        self.marker_path = marker_path
-        self.marker_color = cv2.imread(self.marker_path)
-        if self.marker_color is None:
-            # 이 마커 이미지는 더 이상 사용되지 않지만, 경로 확인을 위해 유지합니다.
-            raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {self.marker_path}")
-        
-        self.cap = cv2.VideoCapture(gstreamer_pipeline(), cv2.CAP_GSTREAMER)
-        if not self.cap.isOpened():
-            raise IOError("GStreamer 파이프라인을 열 수 없습니다. 카메라 연결이나 설정을 확인하세요.")
-
-        self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.step_x = self.frame_width // 3
-        self.step_y = self.frame_height // 3
-        self.cmd = None
-        self.last_area = 0
-
-    def detect_circle(self):
-        ret, frame = self.cap.read()
-        if not ret:
-            print("프레임을 읽을 수 없습니다.")
-            return None, None
-        
-        self.frame = frame
-        self.h, self.w = self.frame.shape[:2]
-        
-        # 흑백으로 변환 및 블러 처리
-        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-        gray_blur = cv2.GaussianBlur(gray, (5, 5), 0)
-        
-        # 외곽선 검출 (테두리 인식)
-        edges = cv2.Canny(gray_blur, 50, 150)
-        
-        # 컨투어 찾기. RECT_CCOMP는 외곽 컨투어와 내부 컨투어를 모두 찾음
-        contours, hierarchy = cv2.findContours(edges, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-        
-        if not contours:
-            return None, None
-
-        # 원형과 속이 빈 형태(홀)를 가진 컨투어 찾기
-        for i, contour in enumerate(contours):
-            area = cv2.contourArea(contour)
-            if area < 50: # 작은 노이즈 무시
-                continue
-
-            perimeter = cv2.arcLength(contour, True)
-            if perimeter == 0:
-                continue
-
-            # 원형에 가까운지 확인 (원형성)
-            circularity = 4 * np.pi * area / (perimeter * perimeter)
-            if 0.7 <= circularity <= 1.2:
-                # 내부 컨투어(홀)가 있는지 확인
-                if hierarchy[0][i][2] != -1:
-                    M = cv2.moments(contour)
-                    if M["m00"] != 0:
-                        cx = int(M["m10"] / M["m00"])
-                        cy = int(M["m01"] / M["m00"])
-                        
-                        # 중심점 표시
-                        cv2.circle(self.frame, (cx, cy), 7, (0, 255, 0), -1)
-                        self.last_area = area # 거리 계산을 위해 면적 저장
-                        return (cx, cy), area
-        
-        return None, None
-
-    def calculate_distance(self):
-        """
-        원의 면적을 기반으로 거리를 계산합니다. (거리 = K / sqrt(면적))
-        - K는 시스템의 실제 환경에 맞춰 튜닝해야 하는 상수입니다.
-        """
-        if self.last_area > 0:
-            # K 값은 사용 환경에 맞춰 직접 계산하여 수정해야 합니다. (예: 100000)
-            K_CONSTANT = 100000
-            distance_mm = K_CONSTANT / np.sqrt(self.last_area)
-            return distance_mm
-        return None
-
-    def get_command(self):
-        self.cmd = None
-        marker_center, area = self.detect_circle()
-
-        if marker_center is not None:
-            col = marker_center[0] // self.step_x + 1
-            row = marker_center[1] // self.step_y + 1
-            position = (row - 1) * 3 + col
-
-            if position == 5:
-                # 중앙 영역 내에서 세부 정렬
-                center_x_start = self.step_x
-                center_y_start = self.step_y
-                sub_step_x = center_x_start // 3
-                sub_step_y = center_y_start // 3
-                relative_x = marker_center[0] - center_x_start
-                relative_y = marker_center[1] - center_y_start
-                sub_col = relative_x // sub_step_x + 1
-                sub_row = relative_y // sub_step_y + 1
-                sub_position = (sub_row - 1) * 3 + sub_col
-                
-                if sub_position == 5:
-                    self.cmd = "stop"
-                else:
-                    self.cmd = ["forward_left", "forward", "forward_right",
-                                "left", "stop", "right",
-                                "backward_left", "backward", "backward_right"][sub_position - 1]
-
-            else:
-                self.cmd = ["forward_left", "forward", "forward_right",
-                            "left", "stop", "right",
-                            "backward_left", "backward", "backward_right"][position - 1]
-        
-        return self.cmd
+def setup_camera():
+    """
+    운영체제에 따라 카메라를 초기화합니다.
+    """
+    os_type = platform.system()
     
-    def cleanup(self):
-        self.cap.release()
-        cv2.destroyAllWindows()
+    if os_type == 'Darwin': # macOS
+        print("💻 macOS 웹캠으로 테스트를 시작합니다. (정사각형으로 크롭됩니다)")
+        cap = cv2.VideoCapture(0)
+    elif os_type == 'Linux': # 라즈베리 파이 OS
+        print("🖥️ 라즈베리 파이 CSI 카메라로 테스트를 시작합니다. (정사각형으로 크롭됩니다)")
+        cap = cv2.VideoCapture(gstreamer_pipeline(), cv2.CAP_GSTREAMER)
+    else:
+        raise NotImplementedError("지원하지 않는 운영체제입니다.")
+        
+    if not cap.isOpened():
+        raise IOError("카메라를 열 수 없습니다. 연결이나 설정을 확인하세요.")
+        
+    return cap
+
+def detect_red_dot(frame):
+    """
+    프레임에서 가장 큰 빨간 점을 감지하고 중심 좌표를 반환합니다.
+    """
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    
+    # 빨간색의 HSV 범위는 0 근처와 180 근처에 걸쳐 있습니다.
+    lower_red1 = np.array([0, 100, 100])
+    upper_red1 = np.array([10, 255, 255])
+    lower_red2 = np.array([160, 100, 100])
+    upper_red2 = np.array([180, 255, 255])
+    
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    mask = mask1 + mask2
+    
+    # 노이즈 제거 및 컨투어 찾기
+    mask = cv2.erode(mask, None, iterations=2)
+    mask = cv2.dilate(mask, None, iterations=2)
+    
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if len(contours) > 0:
+        # 가장 큰 컨투어 찾기 (가장 큰 빨간 점)
+        largest_contour = max(contours, key=cv2.contourArea)
+        
+        # 면적 필터링
+        if cv2.contourArea(largest_contour) > 50:
+            # 중심 좌표 계산
+            M = cv2.moments(largest_contour)
+            if M["m00"] != 0:
+                center_x = int(M["m10"] / M["m00"])
+                center_y = int(M["m01"] / M["m00"])
+                return (center_x, center_y)
+                
+    return None
+
+def run_camera_test():
+    """
+    카메라 테스트를 실행하는 메인 함수
+    """
+    cap = setup_camera()
+    
+    last_print_time = 0
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("프레임을 읽을 수 없습니다. 프로그램을 종료합니다.")
+            break
+
+        # --- 카메라 프레임을 정사각형으로 크롭하는 로직 ---
+        h, w, _ = frame.shape
+        size = min(h, w)
+        x_start = (w - size) // 2
+        y_start = (h - size) // 2
+        square_frame = frame[y_start:y_start+size, x_start:x_start+size]
+        # --------------------------------------------------
+        
+        center = (size // 2, size // 2)
+        dot_center = detect_red_dot(square_frame)
+        
+        is_matched = False
+        if dot_center:
+            # 감지된 점의 중심 좌표 (0,0) 기준
+            dot_x_relative = dot_center[0] - center[0]
+            dot_y_relative = dot_center[1] - center[1]
+            
+            # 매칭 조건: x축이 0에 가깝고, y축은 방향에 관계없이 인식
+            if abs(dot_x_relative) < X_AXIS_TOLERANCE:
+                is_matched = True
+
+            # 인식된 점에 원 그리기 (디버깅용)
+            cv2.circle(square_frame, dot_center, 10, (0, 255, 0), 2)
+            cv2.putText(square_frame, f'({dot_x_relative}, {dot_y_relative})', (dot_center[0] + 20, dot_center[1] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+        # 화면에 결과 표시 및 터미널 출력
+        if is_matched:
+            cv2.putText(square_frame, "MATCHED", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            if time.time() - last_print_time > 1: # 1초에 한 번만 출력
+                print("매칭됨")
+                last_print_time = time.time()
+        else:
+            cv2.putText(square_frame, "NOT MATCHED", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+        cv2.imshow("Camera Test", square_frame)
+        
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    run_camera_test()
