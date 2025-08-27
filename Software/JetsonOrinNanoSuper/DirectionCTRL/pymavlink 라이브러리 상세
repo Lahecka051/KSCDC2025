@@ -1,0 +1,90 @@
+MAVLink에서 GPS 관련 고도 정보는:
+1. GPS_RAW_INT.alt - GPS의 해발고도 (MSL altitude in millimeters)
+2. GLOBAL_POSITION_INT.alt - 해발고도 (MSL altitude in millimeters)
+3. GLOBAL_POSITION_INT.relative_alt - 홈 위치 기준 상대 고도
+4. VFR_HUD.alt - 기압계 기반 고도
+
+GPS_RAW_INT의 alt 필드가 실제 GPS에서 받아오는 해발고도입니다.
+
+```python
+"""
+gps_altitude_test.py
+GPS 해발고도 읽기 테스트
+"""
+
+from pymavlink import mavutil
+import time
+
+# FC 연결
+print("FC 연결 중...")
+master = mavutil.mavlink_connection('/dev/ttyTHS1', baud=57600)
+master.wait_heartbeat()
+print("✅ FC 연결 성공\n")
+
+# GPS 데이터 스트림 요청
+master.mav.request_data_stream_send(
+    master.target_system,
+    master.target_component,
+    mavutil.mavlink.MAV_DATA_STREAM_POSITION,
+    5,  # 5Hz
+    1   # 활성화
+)
+time.sleep(2)
+
+print("=== GPS 고도 정보 ===\n")
+
+# 10초간 GPS 고도 모니터링
+for i in range(10):
+    print(f"--- {i+1}초 ---")
+    
+    # GPS_RAW_INT - GPS 원시 데이터
+    msg = master.recv_match(type='GPS_RAW_INT', blocking=True, timeout=1)
+    if msg:
+        msl_alt = msg.alt / 1000  # 밀리미터 → 미터
+        print(f"GPS_RAW_INT:")
+        print(f"  해발고도(MSL): {msl_alt:.1f}m")
+        print(f"  위성 개수: {msg.satellites_visible}")
+        print(f"  Fix 타입: {msg.fix_type}")
+    
+    # GLOBAL_POSITION_INT - 통합 위치 데이터  
+    msg = master.recv_match(type='GLOBAL_POSITION_INT', blocking=True, timeout=0.5)
+    if msg:
+        msl_alt = msg.alt / 1000  # 밀리미터 → 미터
+        rel_alt = msg.relative_alt / 1000  # 밀리미터 → 미터
+        print(f"GLOBAL_POSITION_INT:")
+        print(f"  해발고도(MSL): {msl_alt:.1f}m")
+        print(f"  상대고도: {rel_alt:.1f}m")
+    
+    # VFR_HUD - 기압계 고도 비교
+    msg = master.recv_match(type='VFR_HUD', blocking=True, timeout=0.5)
+    if msg:
+        print(f"VFR_HUD:")
+        print(f"  기압고도: {msg.alt:.1f}m")
+    
+    # ALTITUDE - 여러 고도 정보 (지원하는 경우)
+    msg = master.recv_match(type='ALTITUDE', blocking=True, timeout=0.5)
+    if msg:
+        print(f"ALTITUDE:")
+        print(f"  MSL고도: {msg.altitude_amsl:.1f}m")  # AMSL = Above Mean Sea Level
+        print(f"  로컬고도: {msg.altitude_local:.1f}m")
+        print(f"  상대고도: {msg.altitude_relative:.1f}m")
+    
+    print("")
+    time.sleep(1)
+
+print("\n=== 고도 요약 ===")
+print("GPS_RAW_INT.alt = GPS 해발고도 (MSL)")
+print("GLOBAL_POSITION_INT.alt = 통합 해발고도 (MSL)")
+print("GLOBAL_POSITION_INT.relative_alt = 홈 위치 상대고도")
+print("VFR_HUD.alt = 기압계 고도")
+print("ALTITUDE.altitude_amsl = 해발고도 (지원시)")
+
+master.close()
+```
+
+GPS 해발고도 소스:
+- **GPS_RAW_INT.alt** - GPS가 직접 제공하는 해발고도 (MSL)
+- **GLOBAL_POSITION_INT.alt** - FC가 통합한 해발고도 (MSL)
+- **ALTITUDE.altitude_amsl** - AMSL (Above Mean Sea Level) 고도
+
+주의: GPS 해발고도는 기압계보다 정확도가 낮을 수 있습니다 (±5-10m 오차).
