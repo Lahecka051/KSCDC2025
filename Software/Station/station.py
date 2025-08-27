@@ -139,4 +139,119 @@ class DroneStation:
                     print(f"  -> 카메라: {'왼쪽' if dot_x_relative > 0 else '오른쪽'}으로 이동")
                 else:
                     self.pwm_lr.ChangeDutyCycle(self.SERVO_360_STOP)
-                    print("
+                    print("  -> 카메라: 좌우 정렬 완료")
+
+                if dot_y_relative > self.TARGET_Y_RELATIVE_PX:
+                    self.pwm_fb.ChangeDutyCycle(self.SERVO_360_FORWARD)
+                    print("  -> 카메라: 앞으로 이동")
+                else:
+                    print("✅ 카메라 정렬 및 거리 확보 완료. ToF 센서 단계로 넘어갑니다.")
+                    self.pwm_fb.ChangeDutyCycle(self.SERVO_360_STOP)
+                    self.pwm_lr.ChangeDutyCycle(self.SERVO_360_STOP)
+                    break
+                time.sleep(0.1)
+
+            docking.cleanup()
+
+            # --- 2단계: ToF 센서를 이용한 정밀 매칭 및 장전 ---
+            print("\n⚙️ ToF 센서로 정밀 매칭을 시작합니다.")
+            tof_sensors = self.setup_tof_sensors()
+            
+            if len(tof_sensors) < 4:
+                print("🚨 4개의 ToF 센서가 모두 연결되지 않았습니다. 장전을 시작할 수 없습니다.")
+                return False
+            else:
+                print(f"-> 소화탄 장전 발수: {ammo_count} 발")
+                
+                while True:
+                    distances = self.get_sensor_data(tof_sensors)
+                    
+                    if None in distances:
+                        print("⚠️ 센서 데이터를 읽을 수 없습니다. 다시 시도합니다.")
+                        time.sleep(1)
+                        continue
+                        
+                    is_all_matched = (
+                        abs(distances[0] - self.TARGET_DISTANCE_MM_TOF) <= self.TOLERANCE_MM_TOF and
+                        abs(distances[1] - self.TARGET_DISTANCE_MM_TOF) <= self.TOLERANCE_MM_TOF and
+                        abs(distances[2] - self.TARGET_DISTANCE_MM_TOF) <= self.TOLERANCE_MM_TOF and
+                        abs(distances[3] - self.TARGET_DISTANCE_MM_TOF) <= self.TOLERANCE_MM_TOF
+                    )
+                    
+                    if is_all_matched:
+                        print("\n✅ 드론의 소화탄 장착부가 완벽하게 매칭되었습니다.")
+                        self.pwm_fb.ChangeDutyCycle(self.SERVO_360_STOP)
+                        self.pwm_lr.ChangeDutyCycle(self.SERVO_360_STOP)
+                        self.load_ammo(ammo_count)
+                        return True
+                    else:
+                        offset_fb = distances[0] - distances[2]
+                        offset_lr = distances[1] - distances[3]
+                        print(f"    -> 정렬 필요: 앞뒤 오차={offset_fb:.2f}mm, 좌우 오차={offset_lr:.2f}mm")
+                        self.control_servos_tof(offset_fb, offset_lr)
+                        
+                    time.sleep(0.1)
+                        
+        except KeyboardInterrupt:
+            print("\n\n👋 사용자 중지 요청.")
+            return False
+        except Exception as e:
+            print(f"\n\n🚨 오류 발생: {e}")
+            return False
+
+    def process_command(self, command):
+        """PC로부터 받은 명령을 처리하고 결과를 반환합니다."""
+        if command.get('command') == 'start_docking':
+            ammo_count = command.get('ammo_count')
+            print(f"\n\n[명령 처리] '도킹 시작' 명령 수신. 장전 수: {ammo_count} 발")
+            
+            success = self.run_station_process(ammo_count)
+            
+            if success:
+                return {'status': 'success', 'message': f'{ammo_count}발 장전 완료'}
+            else:
+                return {'status': 'failure', 'message': '도킹 및 장전 실패'}
+        
+        return {'status': 'error', 'message': '알 수 없는 명령'}
+
+    def cleanup(self):
+        """프로그램 종료 시 자원 정리"""
+        self.pwm_fb.stop()
+        self.pwm_lr.stop()
+        self.pwm_ammo.stop()
+        GPIO.cleanup()
+        self.client.close()
+
+    def run(self):
+        """메인 실행 루프"""
+        print("--- 드론 스테이션 프로그램 시작 ---")
+        try:
+            while True:
+                if not self.client.is_connected:
+                    print("서버에 재연결을 시도합니다...")
+                    if self.client.connect():
+                        print(">> PC로부터 명령을 기다립니다...")
+                    else:
+                        time.sleep(5)
+                        continue
+
+                try:
+                    command = self.client.command_queue.get(timeout=1)
+                    result = self.process_command(command)
+                    self.client.send_response(result)
+                except queue.Empty:
+                    pass
+
+        except KeyboardInterrupt:
+            print("\n\n👋 사용자에 의해 프로그램이 중지됩니다.")
+        finally:
+            self.cleanup()
+            print(">> 프로그램 종료.")
+
+
+# --- 4. 메인 프로그램 진입점 ---
+if __name__ == '__main__':
+    # PC의 실제 로컬 이름 또는 IP 주소로 변경해주세요!
+    PC_HOSTNAME = 'Your-PC-Name.local'
+    station = DroneStation(pc_host=PC_HOSTNAME)
+    station.run()
