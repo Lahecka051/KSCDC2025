@@ -31,7 +31,7 @@ if __name__ == "__main__":
     print("FC 연결 중...")
     try:
         master = mavutil.mavlink_connection('/dev/ttyTHS1', baud=115200)
-        master.wait_heartbeat()
+        # master.wait_heartbeat()
         print("✅ FC 연결 성공")
     except Exception as e:
         print(f"🚨 FC 연결 실패: {e}")
