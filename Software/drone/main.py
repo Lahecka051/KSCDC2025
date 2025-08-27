@@ -11,6 +11,7 @@ from patrol import patrol
 from Fire_detector import Fire_detector
 from Landing import Landing
 from Fire_extinguishing import Fire_extinguishing
+from MG90 import MG90
 
 # --- 통신 모듈 객체 생성 ---
 # ❗️❗️❗️PC의 실제 이름으로 반드시 변경해주세요❗️❗️❗️
@@ -22,6 +23,10 @@ pipeline0 = gstreamer_pipeline(sensor_id=0)
 pipeline1 = gstreamer_pipeline(sensor_id=1)
 cap0 = cv2.VideoCapture(pipeline0, cv2.CAP_GSTREAMER)
 cap1 = cv2.VideoCapture(pipeline1, cv2.CAP_GSTREAMER)
+
+# --- 서보모터 객체 생성 ---
+servo = MG90(15)
+set_angle(0)
 
 # --- 화제탐지 객체 생성 ---
 fire_dector = Fire_detector(cap0,cap1)
@@ -35,7 +40,7 @@ landing = Landing(cap1, drone_system)
 patrol = Patrol(drone_system, fire_detector, landing, communicator)
 
 # --- 소화볼 투하 객체 생성 ---
-fire_extinguishing = Fire_extinguishing(drone_system, fire_detector, landing, communicator)
+fire_extinguishing = Fire_extinguishing(drone_system, fire_detector, landing, communicator, servo)
 
 # --- 메인 로직: PC로부터 명령 수신 대기 ---
 def main():
@@ -61,6 +66,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
