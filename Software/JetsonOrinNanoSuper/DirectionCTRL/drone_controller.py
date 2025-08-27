@@ -11,7 +11,7 @@ import threading
 class DroneCommandController:
     """드론 컨트롤러 클래스"""
     
-    def __init__(self, connection_string='/dev/ttyTHS1', baudrate=115200):
+    def __init__(self, connection_string='/dev/ttyACM0', baudrate=115200):
         self.connection_string = connection_string
         self.baudrate = baudrate
         self.master = None
