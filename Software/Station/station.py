@@ -3,7 +3,7 @@ import board
 import busio
 import RPi.GPIO as GPIO
 import adafruit_vl53l0x
-from camera_module import Docking
+from Doc_match import Docking
 
 # 통신 클라이언트 라이브러리 임포트
 from rpi_client import RPiClient # PC(서버)와 통신하기 위한 클라이언트 클래스를 가져옵니다.
