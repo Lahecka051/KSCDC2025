@@ -5,6 +5,7 @@ from pymavlink import mavutil
 import sys
 
 # --- 1. 카메라 파이프라인 함수 정의 ---
+"""
 def gstreamer_pipeline(
     sensor_id,
     capture_width=1280,
@@ -22,7 +23,7 @@ def gstreamer_pipeline(
         "videoconvert ! "
         "video/x-raw, format=(string)BGR ! appsink"
     )
-
+"""
 # --- 2. 메인 드론 제어 프로그램 ---
 if __name__ == "__main__":
     
