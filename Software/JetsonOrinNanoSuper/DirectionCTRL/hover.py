@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # --- FC 연결 및 모드 설정 ---
     print("FC 연결 중...")
     try:
-        master = mavutil.mavlink_connection('/dev/ttyTHS1', baud=115200)
+        master = mavutil.mavlink_connection('/dev/ttyACM0', baud=115200)
         master.wait_heartbeat()
         print("✅ FC 연결 성공")
     except Exception as e:
