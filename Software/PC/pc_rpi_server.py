@@ -81,12 +81,14 @@ class PC_RPi_Server:
 
     def close(self):
         """모든 소켓 연결을 정리하고 서버를 종료합니다."""
+        self._running = False # 모든 스레드 루프를 중지시킴
         if self.client_socket:
-            self.client_socket.close()
+            try:
+                # 클라이언트에게 연결 종료를 알리기 위해 shutdown을 사용할 수 있습니다.
+                self.client_socket.shutdown(socket.SHUT_RDWR)
+                self.client_socket.close()
+            except OSError:
+                pass # 이미 닫혔을 수 있음
         if self.server_socket:
             self.server_socket.close()
         print(">> 서버가 종료되었습니다.")
-        except KeyboardInterrupt:
-            break
-    
-    server.close()
