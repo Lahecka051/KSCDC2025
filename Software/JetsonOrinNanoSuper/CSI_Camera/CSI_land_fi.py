@@ -3,160 +3,7 @@ import numpy as np
 import time
 from pipeline import gstreamer_pipeline
 
-class Landing:
-    def __init__(self, cap, marker_path = "/home/kscdc2025/Marker.png"):
-        self.last_print_time = 0
-        self.marker_path = marker_path
-        self.marker_color = cv2.imread(self.marker_path)
-        if self.marker_color is None:
-            raise FileNotFoundError(f"마커 이미지를 불러올 수 없습니다: {self.marker_path}")
-
-        self.cap = cap
-        self.marker_size = 100
-        self.frame_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.frame_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-        self.cmd = None
-
-        self.mf_process()
-
-    def mf_process(self):
-        self.marker_gray = cv2.cvtColor(self.marker_color, cv2.COLOR_BGR2GRAY)
-        self.marker_blur = cv2.GaussianBlur(self.marker_gray, (5, 5), 0)
-        _, thresh = cv2.threshold(self.marker_blur, 90, 255, cv2.THRESH_BINARY_INV)
-
-        self.marker_thresh = cv2.resize(thresh, (100, 100))
-
-    def ff_process(self):
-        self.frame_gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-        self.frame_blur = cv2.GaussianBlur(self.frame_gray, (5, 5), 0)
-        _, self.frame_thresh = cv2.threshold(self.frame_blur, 90, 255, cv2.THRESH_BINARY_INV)
-        self.h, self.w = self.frame_gray.shape
-
-    def detect_red_dot(self):
-        # HSV 색공간 변환
-        hsv = cv2.cvtColor(self.frame, cv2.COLOR_BGR2HSV)
-
-        # 빨간색 범위 2개
-        lower_red1 = np.array([0, 150, 150])
-        upper_red1 = np.array([10, 255, 255])
-        lower_red2 = np.array([160, 150, 150])
-        upper_red2 = np.array([179, 255, 255])
-
-        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
-        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
-        red_mask = cv2.bitwise_or(mask1, mask2)
-
-        # 노이즈 제거
-        kernel = np.ones((3,3), np.uint8)
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
-        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
-
-        contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            largest_contour = max(contours, key=cv2.contourArea)
-            area = cv2.contourArea(largest_contour)
-            approx = cv2.approxPolyDP(largest_contour, 0.02 * cv2.arcLength(largest_contour, True), True)
-            
-            if area > 150 and len(approx) > 7:  # 너무 작은 영역 무시
-                M = cv2.moments(largest_contour)
-                if M["m00"] != 0:
-                    cx = int(M["m10"] / M["m00"])
-                    cy = int(M["m01"] / M["m00"])
-                    # 중심점 표시 (디버그용)
-                    cv2.circle(self.frame, (cx, cy), 7, (0, 255, 0), -1)
-                    return (cx, cy)
-        return None
-
-    def tem_match(self):
-        self.cmd = None
-        
-        # 화면 중앙 좌표
-        center_x = self.frame_width // 2
-        center_y = self.frame_height // 2
-
-        # 화면 중앙에 + 표시 (디버그용)
-        cv2.line(self.frame, (center_x, center_y - 20), (center_x, center_y + 20), (255, 0, 0), 2)
-        cv2.line(self.frame, (center_x - 20, center_y), (center_x + 20, center_y), (255, 0, 0), 2)
-
-        # 마커 탐지
-        self.marker_center = self.detect_red_dot()
-        
-        if self.marker_center is not None:
-            # 마커의 상대적 위치 계산
-            x_diff = self.marker_center[0] - center_x
-            y_diff = self.marker_center[1] - center_y
-            
-            # 오차 허용 범위 설정 (픽셀)
-            CENTER_TOLERANCE_PX = 15
-
-            # 명령 결정
-            x_cmd = ""
-            y_cmd = ""
-            
-            if abs(x_diff) > CENTER_TOLERANCE_PX:
-                if x_diff > 0:
-                    x_cmd = "right"
-                else:
-                    x_cmd = "left"
-            
-            if abs(y_diff) > CENTER_TOLERANCE_PX:
-                if y_diff > 0:
-                    y_cmd = "backward"
-                else:
-                    y_cmd = "forward"
-                    
-            if x_cmd and y_cmd:
-                self.cmd = ["level", f"{y_cmd}_{x_cmd}", 0, 5]
-                print(f"마커 감지 -> x:{x_diff}, y:{y_diff} / 명령: {self.cmd[1]}")
-            elif x_cmd:
-                self.cmd = ["level", x_cmd, 0, 5]
-                print(f"마커 감지 -> x:{x_diff}, y:{y_diff} / 명령: {self.cmd[1]}")
-            elif y_cmd:
-                self.cmd = ["level", y_cmd, 0, 5]
-                print(f"마커 감지 -> x:{x_diff}, y:{y_diff} / 명령: {self.cmd[1]}")
-            else:
-                self.cmd = ["level", "stop", 0, 5]
-                print("마커 감지 -> 완벽한 매칭 / 명령: stop")
-                
-        else:
-            self.cmd = None
-            print("마커 없음")
-            
-        cv2.imshow("Frame with Red Dot Detection", self.frame)
-        return self.cmd
-
-    def run(self):
-        while True:
-            ret, self.frame = self.cap.read()
-            if not ret:
-                print("프레임을 읽을 수 없습니다.")
-                break
-
-            self.ff_process()
-            self.tem_match()
-
-            now = time.time()
-            if now - self.last_print_time > 0.5:
-                print("현재 명령:", self.cmd)
-                self.last_print_time = now
-
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
-
-        self.cap.release()
-        cv2.destroyAllWindows()
-
-    def process_frame(self, frame):
-        self.frame = frame
-        self.ff_process()
-        self.tem_match()
-    
-        self.debug_frame = self.frame.copy()
-    
-        return self.marker_center is not None  # 마커 탐지 여부 반환
-
-"""
+# GStreamer 파이프라인 함수를 클래스 외부에 정의합니다.
 def gstreamer_pipeline(
     sensor_id,
     capture_width=1280,
@@ -174,16 +21,141 @@ def gstreamer_pipeline(
         "videoconvert ! "
         "video/x-raw, format=(string)BGR ! appsink"
     )
-"""
+
+class Landing:
+    def __init__(self, display_width=960, display_height=540):
+        self.frame_width = display_width
+        self.frame_height = display_height
+        self.last_print_time = 0
+        self.last_command = [0, 0, 0, 0] # 마지막 명령 저장
+
+    def detect_red_dot(self, frame):
+        """프레임에서 가장 큰 빨간 점을 감지하고 중심 좌표와 면적을 반환"""
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        lower_red1 = np.array([0, 150, 150])
+        upper_red1 = np.array([10, 255, 255])
+        lower_red2 = np.array([160, 150, 150])
+        upper_red2 = np.array([179, 255, 255])
+
+        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+        red_mask = cv2.bitwise_or(mask1, mask2)
+        
+        kernel = np.ones((3,3), np.uint8)
+        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
+        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
+        
+        contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            largest_contour = max(contours, key=cv2.contourArea)
+            area = cv2.contourArea(largest_contour)
+            approx = cv2.approxPolyDP(largest_contour, 0.02 * cv2.arcLength(largest_contour, True), True)
+            
+            if area > 150 and len(approx) > 7:
+                M = cv2.moments(largest_contour)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    return (cx, cy, area)
+        return None
+
+    def get_control_command(self, frame):
+        """
+        카메라 프레임을 분석하여 드론 제어 명령을 반환.
+        명령 형식: [위아래, 전후, 좌우, 회전]
+        """
+        
+        # 화면 중앙 좌표
+        center_x = self.frame_width // 2
+        center_y = self.frame_height // 2
+        
+        # 마커 탐지
+        marker_info = self.detect_red_dot(frame)
+        
+        # 기본 명령 (마커 없을 시)
+        # 위아래(수평 유지), 전후(정지), 좌우(정지), 회전(정지)
+        command = [0, 0, 0, 0] 
+        
+        if marker_info:
+            marker_center_x, marker_center_y, area = marker_info
+            
+            # 디버그용 중심점 표시
+            cv2.circle(frame, (marker_center_x, marker_center_y), 7, (0, 255, 0), -1)
+            
+            # 마커의 상대적 위치
+            x_diff = marker_center_x - center_x
+            y_diff = marker_center_y - center_y
+            
+            # 명령 계산
+            # 정수형으로 변환하기 위한 스케일링 팩터
+            SCALE = 15 
+            
+            # 위아래 (하강) - 마커 감지 시 하강 명령
+            command[0] = -0.2
+            
+            # 전후 (+: 전진, -: 후진) - Y축 오차에 비례하여 제어
+            # 마커가 아래(y_diff > 0)에 있으면 드론은 후진해야 함
+            command[1] = -(y_diff // SCALE)
+            
+            # 좌우 (+: 좌측, -: 우측) - X축 오차에 비례하여 제어
+            # 마커가 오른쪽(x_diff > 0)에 있으면 드론은 우측으로 이동해야 함
+            command[2] = -(x_diff // SCALE)
+            
+            # 회전
+            command[3] = 0
+            
+            # 디버그 메시지 출력 (0.5초 간격)
+            now = time.time()
+            if now - self.last_print_time > 0.5:
+                print(f"마커 감지 | 오차: x={x_diff}, y={y_diff} | 명령: {command}")
+                self.last_print_time = now
+        else:
+            # 마커 미감지 시, 마지막 명령을 유지하거나 정지
+            # 여기서는 편의상 정지 명령을 보냅니다.
+            print("마커 없음. 드론 정지 또는 호버링")
+            
+        return command
+
+    def run_main_loop(self):
+        """
+        테스트를 위한 메인 루프 (실제 드론 제어 코드에 통합되어야 함)
+        """
+        pipeline0 = gstreamer_pipeline(sensor_id=0)
+        cap = cv2.VideoCapture(pipeline0, cv2.CAP_GSTREAMER)
+
+        if not cap.isOpened():
+            print("GStreamer 파이프라인을 열 수 없습니다. 카메라 연결이나 설정을 확인하세요.")
+            return
+
+        print("카메라를 시작합니다. 'ESC' 키를 눌러 종료하세요.")
+        
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("프레임을 읽을 수 없습니다.")
+                break
+                
+            # 제어 명령 얻기
+            command = self.get_control_command(frame)
+            
+            # 이 부분에서 얻은 'command' 리스트를 드론 제어 코드로 전송하면 됩니다.
+            # 예: master.mav.set_position_target_local_ned_send(...)
+            
+            # 디버그용 화면 표시
+            cv2.imshow("Drone Landing", frame)
+            
+            if cv2.waitKey(1) & 0xFF == 27:
+                print("사용자 중지 요청.")
+                break
+        
+        cap.release()
+        cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
-    from pipeline import gstreamer_pipeline
-
-    pipeline0 = gstreamer_pipeline(sensor_id=0)
-    cap = cv2.VideoCapture(pipeline0, cv2.CAP_GSTREAMER)
-
-    if not cap.isOpened():
-        print("GStreamer 파이프라인을 열 수 없습니다. 카메라 연결이나 설정을 확인하세요.")
-    else:
-        landing = Landing(cap)
-        landing.run()
+    # 클래스 인스턴스화
+    landing_controller = Landing()
+    
+    # 메인 루프 실행
+    landing_controller.run_main_loop()
