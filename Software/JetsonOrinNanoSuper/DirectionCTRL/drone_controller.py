@@ -1,6 +1,5 @@
 from pymavlink import mavutil
 import time
-import threading
 import math
 
 class DroneController:
@@ -17,14 +16,6 @@ class DroneController:
         self.relative_alt = 0.0      # 상대 고도 (이륙 지점 기준)
         self.set_alt = 5.0            # 설정 고도 (이륙 후 유지할 고도)
 
-        # 모니터링 스레드
-        self.monitoring = False
-        self.monitor_thread = None
-        
-        # Yaw 정보
-        self.current_yaw = 0.0        # 현재 yaw (라디안)
-        self.fixed_yaw = None         # 고정할 yaw 값
-        
         # GPS 정보
         self.current_lat = None
         self.current_lon = None
@@ -45,7 +36,7 @@ class DroneController:
                 self.master.target_system,
                 self.master.target_component,
                 mavutil.mavlink.MAV_DATA_STREAM_ALL,
-                50,  # 50Hz로 데이터 요청
+                10,  # 10Hz로 데이터 요청
                 1
             )
             
@@ -61,8 +52,17 @@ class DroneController:
             4  # GUIDED mode
         )
         time.sleep(0.1)
+             
+    def set_mode_rtl(self):
+        """RTL(Return To Launch) 모드 설정"""
+        self.master.mav.set_mode_send(
+            self.master.target_system,
+            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            6  # RTL mode
+        )
+        time.sleep(0.1)
         
-    def land(self):
+    def set_mode_land(self):
         """LAND 모드 설정"""
         self.master.mav.set_mode_send(
             self.master.target_system,
@@ -70,6 +70,15 @@ class DroneController:
             9  # LAND mode
         )
         time.sleep(0.1)
+        
+    def set_mode_break(self):
+        """BREAK 모드 설정"""
+        self.master.mav.set_mode_send(
+            self.master.target_system,
+            mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+            17  # BREAK mode
+        )
+        time.sleep(0.1)    
         
     def arm(self):
         """시동"""
@@ -85,19 +94,17 @@ class DroneController:
             0, 1, 0, 0, 0, 0, 0, 0
         )
         
-        # # 시동 확인
-        # for i in range(10):
-        #     if self.is_armed:
-        #         print("[드론] ✅ 시동 성공")
-        #         print("\n[초기 고도 상태]")
-        #         self.print_altitudes()
-        #         print()
-        #         return True
-        #     time.sleep(0.5)
-        time.sleep(3)
-        
-        print("[드론] ❌ 시동 실패")
-        return False
+        # 시동 확인
+        for i in range(10):
+            msg = self.master.recv_match(type='HEARTBEAT', blocking=True, timeout=5)
+            if msg and msg.get_srcSystem() == 1 and msg.get_srcComponent() == 1:
+                self.is_armed = msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED               
+            if self.is_armed:
+                print("[드론] ✅ 시동 성공")
+                return True
+            else:
+                print("[드론] ❌ 시동 실패")
+                return False
     
     def disarm(self):
         """시동 끄기"""
@@ -138,7 +145,7 @@ class DroneController:
             vx = cmd[0]  # 전진/후진 (North)
             vy = -cmd[1]  # 좌/우 (East, 좌측이 +이므로 부호 반전)
             vz = -cmd[2]  # 상승/하강 (Down, 상승이 +이므로 부호 반전)
-            rotation = cmd[3]  # 드론 방향 (0~359도, 시계방향)
+            rotation = math.radians(int(cmd[3]))  # 드론 방향 (0~359도, 시계방향)
         else:
             raise ValueError("Command must be a list with 4 elements")
 
@@ -164,7 +171,7 @@ class DroneController:
         """ 
         
         if altitude is None:
-            altitude = self.set_alt  # 고도 유지
+            altitude = self.set_alt  # 5M 고도 설정
             print(f"[GPS 이동] 위도: {latitude:.7f}, 경도: {longitude:.7f}, 고도: ({altitude:.1f}m)")
         
         # GPS 좌표로 이동 명령
@@ -181,3 +188,14 @@ class DroneController:
             0, 0, 0,  # 가속도 (사용 안 함)
             0, 0  # yaw, yaw_rate (사용 안 함)
         )
+
+if __name__ == "__main__":
+    drone = DroneController()
+    drone.connect()
+    drone.arm()
+    drone.takeoff(2)
+    drone.set_command([1, 0, 0, 90])
+
+    
+    
+    
