@@ -15,6 +15,7 @@ class Patrol():
         self.communicator = communicator
         self.status_q = queue.Queue()
         self.stop_event = threading.Event()
+        self.ARRIVAL_RADIUS = 2
 
     def run(self, path):
         if not path: return
