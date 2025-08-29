@@ -1,3 +1,4 @@
+from socket import timeout
 from pymavlink import mavutil
 import time
 import math
@@ -15,8 +16,6 @@ class DroneController:
 
 
         # GPS 정보
-        self.current_lat = None
-        self.current_lon = None
         self.home_lat = None  # 홈 위치 추가
         self.home_lon = None  # 홈 위치 추가
         
@@ -107,6 +106,8 @@ class DroneController:
             0, 1, 0, 0, 0, 0, 0, 0
         )
         time.sleep(0.1)
+        print("\n[드론] 시동 중...")
+        
         # 시동 확인
         for i in range(10):
             msg = self.master.recv_match(type='HEARTBEAT', blocking=True, timeout=5)
@@ -251,33 +252,6 @@ class DroneController:
             0, 0, 0,  # 가속도 (사용 안 함)
             0, 0  # yaw, yaw_rate (사용 안 함)
         )
-        # 도착 판정
-        timeout = 120  # 최대 120초 대기
-        start_time = time.time()
-        arrival_threshold = 3.0  # 3미터 이내 도착 판정
-    
-        while time.time() - start_time < timeout:
-            # 현재 GPS 위치 읽기
-            msg = self.master.recv_match(type='GLOBAL_POSITION_INT', blocking=True, timeout=0.02)
-            if msg:
-                current_lat = msg.lat / 1e7
-                current_lon = msg.lon / 1e7
-                current_alt = msg.relative_alt / 1000.0 # 고도 계산에 사용하지 않음
-            
-                # 거리 계산 (단순화된 2D 거리)
-                lat_diff = (latitude - current_lat) * 111111  # 위도 1도 ≈ 111km
-                lon_diff = (longitude - current_lon) * 111111 * math.cos(math.radians(current_lat))
-                distance = math.sqrt(lat_diff**2 + lon_diff**2)
-            
-                print(f"  거리: {distance:.1f}m, 고도: {current_alt:.1f}m", end='\r')
-            
-                # 도착 판정
-                if distance <= arrival_threshold:
-                    print(f"\n[드론] 목표 지점 도착 (거리: {distance:.1f}m)")
-                    return True
-    
-        print(f"\n[드론] 이동 시간 초과 ({timeout}초)")
-        return False
     
     def goto_home(self):
         """홈 위치로 복귀"""
@@ -286,8 +260,34 @@ class DroneController:
             return False
         
         print(f"[드론] 홈으로 복귀 중...")
-        return self.goto_gps(self.home_lat, self.home_lon, self.set_alt)
-    
+        while True:
+            self.goto_gps(self.home_lat, self.home_lon, self.set_alt)
+            distance = self.get_distance_metres(
+                self.home_lat, self.home_lon,
+                self.read_gps().get("lat"), self.read_gps().get("lon")
+            )
+            if distance <= 2:
+                print("[드론] 홈 위치 도착")
+                break
+
+    def get_distance_metres(self,lat1, lon1, lat2, lon2):
+        """두 GPS 좌표 사이의 거리를 미터 단위로 계산하는 함수 (하버사인 공식)"""
+        R = 6371e3  # 지구의 반지름 (미터)
+        
+        # 위도, 경도를 라디안으로 변환
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        delta_phi = math.radians(lat2 - lat1)
+        delta_lambda = math.radians(lon2 - lon1)
+
+        a = math.sin(delta_phi / 2)**2 + \
+            math.cos(phi1) * math.cos(phi2) * \
+            math.sin(delta_lambda / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        distance = R * c
+        return distance
+        
 if __name__ == "__main__":
     
     drone = DroneController()
