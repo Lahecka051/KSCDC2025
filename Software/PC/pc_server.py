@@ -164,18 +164,25 @@ class App:
         """
         (메인 GUI 스레드) 수신된 화재 보고 데이터로 지도, 이미지, 버튼 등 GUI를 업데이트합니다.
         """
-        lat, lon = coords['lat'], coords['lon']
-        # 지도 이동 및 화재 마커 표시
-        self.map_widget.set_position(lat, lon)
-        self.map_widget.set_zoom(17)
-        fire_marker = self.map_widget.set_marker(lat, lon, text="!!화재 발생!!", marker_color_circle="red", marker_color_outside="red")
-        self.fire_markers.append(fire_marker)
-        tkinter.messagebox.showerror("긴급!", f"화재 발생!\n위치: {lat}, {lon}")
+    def update_gui_with_report(self, coords, img_data):
+        """
+        (메인 GUI 스레드) 수신된 화재 보고 데이터로 지도, 이미지, 버튼 등 GUI를 업데이트합니다.
+        """
+        if coords is not None:
+            lat, lon = coords['lat'], coords['lon']
+            # 지도 이동 및 화재 마커 표시
+            self.map_widget.set_position(lat, lon)
+            self.map_widget.set_zoom(17)
+            fire_marker = self.map_widget.set_marker(lat, lon, text="!!화재 발생!!", marker_color_circle="red", marker_color_outside="red")
+            self.fire_markers.append(fire_marker)
+            tkinter.messagebox.showerror("긴급!", f"화재 발생!\n위치: {lat}, {lon}")
 
-        # 화재 위치를 저장하고 진압 승인 버튼 활성화
-        self.last_fire_location = coords
-        self.approve_button.config(state="normal")
-        self.mission_status_label.config(text="상태: 진압 승인 대기 중")
+            # 화재 위치를 저장하고 진압 승인 버튼 활성화
+            self.last_fire_location = coords
+            self.approve_button.config(state="normal")
+            self.mission_status_label.config(text="상태: 진압 승인 대기 중")
+        else:
+             tkinter.messagebox.showerror("오류!", "드론이 GPS 좌표 오류")
 
         try:
             # 수신된 이미지 데이터를 GUI에 표시하고 파일로 저장
@@ -364,3 +371,4 @@ if __name__ == "__main__":
     root = tkinter.Tk()  # 메인 GUI 윈도우 생성
     app = App(root)      # App 클래스의 인스턴스 생성 (프로그램 시작)
     root.mainloop()      # GUI 이벤트 루프 시작 (창이 닫히기 전까지 계속 실행)
+
