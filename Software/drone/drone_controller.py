@@ -1,4 +1,3 @@
-from socket import timeout
 from pymavlink import mavutil
 import time
 import math
