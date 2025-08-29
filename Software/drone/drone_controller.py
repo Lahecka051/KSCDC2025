@@ -208,6 +208,23 @@ class DroneController:
         else:
             print("[드론] 고도 읽기 실패")
             return None
+    
+        
+    def read_gps(self):
+        """현재 GPS 위치를 딕셔너리로 반환"""
+        msg = self.master.recv_match(type='GLOBAL_POSITION_INT', blocking=True, timeout=5)
+        if msg:
+            lat = msg.lat / 1e7
+            lon = msg.lon / 1e7
+            gps_data = {
+                "lat": lat,
+                "lon": lon
+            }
+            print(f"[드론] GPS 읽기: 위도 {lat:.7f}, 경도 {lon:.7f}")
+            return gps_data
+        else:
+            print("[드론] GPS 읽기 실패")
+            return None
         
     def goto_gps(self, latitude, longitude, altitude=None):
         """
@@ -262,22 +279,6 @@ class DroneController:
         print(f"\n[드론] 이동 시간 초과 ({timeout}초)")
         return False
     
-    def goto_gps_list(self, gps_list):
-        """ GPS 좌표 리스트를 순차적으로 방문
-        gps_list = [[lat1, lon1], [lat2, lon2], ...]
-        fly_mission(gps_list)
-        """
-        for i, point in enumerate(gps_list):
-            if len(point) >= 2:
-                lat, lon = point[0], point[1]
-                alt = point[2] if len(point) > 2 else None
-            
-                print(f"\n[{i+1}/{len(gps_list)}번째 지점]")
-                if not self.goto_gps(lat, lon, alt):
-                    print(f"[드론] {i+1}번째 지점 도착 실패")
-                    return False
-        return True
-    
     def goto_home(self):
         """홈 위치로 복귀"""
         if self.home_lat is None or self.home_lon is None:
@@ -286,22 +287,6 @@ class DroneController:
         
         print(f"[드론] 홈으로 복귀 중...")
         return self.goto_gps(self.home_lat, self.home_lon, self.set_alt)
-    
-    def read_gps(self):
-        """현재 GPS 위치를 딕셔너리로 반환"""
-        msg = self.master.recv_match(type='GLOBAL_POSITION_INT', blocking=True, timeout=5)
-        if msg:
-            lat = msg.lat / 1e7
-            lon = msg.lon / 1e7
-            gps_data = {
-                "lat": lat,
-                "lon": lon
-            }
-            print(f"[드론] GPS 읽기: 위도 {lat:.7f}, 경도 {lon:.7f}")
-            return gps_data
-        else:
-            print("[드론] GPS 읽기 실패")
-            return None
     
 if __name__ == "__main__":
     
