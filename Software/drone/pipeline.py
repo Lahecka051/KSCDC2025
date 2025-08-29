@@ -3,7 +3,7 @@
 def gstreamer_pipeline(
     sensor_id,
     capture_width=1280,
-    capture_height=720,
+    capture_height=1280,
     display_width=960,
     display_height=960,
     framerate=30,
