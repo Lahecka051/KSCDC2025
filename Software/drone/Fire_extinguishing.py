@@ -3,7 +3,6 @@ import socket
 import json
 import time
 import cv2
-from MG90 import MG90
 
 class Fire_extinguishing():
     def __init__(self, drone_system, fire_detector, landing, communicator, servo):
