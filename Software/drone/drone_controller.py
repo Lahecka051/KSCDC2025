@@ -197,6 +197,17 @@ class DroneController:
             0, 0, 0,  # 가속도 (사용 안 함)
             rotation, 0  # yaw, yaw_rate
         )
+    
+    def read_altitude(self):
+        """현재 상대 고도를 읽어서 반환"""
+        msg = self.master.recv_match(type='VFR_HUD', blocking=True, timeout=1)
+        if msg:
+            altitude = msg.alt  # 상대 고도 (미터)
+            print(f"[드론] 현재 고도: {altitude:.2f}m")
+            return altitude
+        else:
+            print("[드론] 고도 읽기 실패")
+            return None
         
     def goto_gps(self, latitude, longitude, altitude=None):
         """
