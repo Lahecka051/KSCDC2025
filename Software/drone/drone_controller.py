@@ -108,15 +108,17 @@ class DroneController:
         print("\n[드론] 시동 중...")
         
         # 시동 확인
-        for i in range(10):
-            msg = self.master.recv_match(type='HEARTBEAT', blocking=True, timeout=5)
-            if msg and msg.get_srcSystem() == 1 and msg.get_srcComponent() == 1:
-                self.is_armed = msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED               
-                if self.is_armed:
-                    print("[드론] 시동 성공")
-                    return True
-            time.sleep(0.1)
-        print("[드론] 시동 실패")
+        print("[드론] 시동 대기 중...")
+# 들여쓰기 해야함
+while True:
+    msg = self.master.recv_match(type='HEARTBEAT', blocking=True, timeout=5)
+    if msg and msg.get_srcSystem() == 1 and msg.get_srcComponent() == 1:
+        self.is_armed = msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED               
+        if self.is_armed:
+            print("[드론] 시동 성공")
+            return True
+    else:
+        print("[드론] 시동 실패 - 하트비트 타임아웃")
         return False
     
     def disarm(self):
