@@ -10,7 +10,7 @@ class DroneController:
         self.is_armed = False
         
         # 고도 정보
-        self.set_alt = 2.0        # 설정 고도 (이륙, 주행 중 유지할 고도)
+        self.set_alt = 5.0        # 설정 고도 (이륙, 주행 중 유지할 고도)
         self.archived_alt = None  # 이륙 완료 판정 고도 (set_alt의 95%)
 
 
@@ -97,6 +97,15 @@ class DroneController:
         # GUIDED 모드 설정
         self.set_mode_guided()
         
+        # 시동 전 홈 위치 리셋 (중요!)
+        self.master.mav.command_long_send(
+            self.master.target_system,
+            self.master.target_component,
+            mavutil.mavlink.MAV_CMD_DO_SET_HOME,
+            0, 1, 0, 0, 0, 0, 0, 0  # 현재 위치를 홈으로 설정
+        )
+        time.sleep(0.5)
+            
         # ARM 명령
         self.master.mav.command_long_send(
             self.master.target_system,
