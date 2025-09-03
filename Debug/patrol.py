@@ -67,6 +67,7 @@ class Patrol():
                     elif result["status"] == "recognized":
                         status = "FIRE_DETECTED"
                         fire_coords = result["coords"]
+                        print("화제추정 지점:", fire_coords)
                         
                     elif result["status"] == "failed":
                         status = "MOVING_TO_TARGET"
@@ -127,3 +128,4 @@ class Patrol():
         if fire_confirmed:
             image_path = "captured_image.jpg"  # 수정: image_path 정의
             self.communicator.send_fire_report(coordinates, image_path)  # 수정: 콜론 제거
+
