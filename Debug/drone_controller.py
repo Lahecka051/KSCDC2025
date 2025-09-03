@@ -10,7 +10,7 @@ class DroneController:
         self.is_armed = False
         
         # 고도 정보
-        self.set_alt = 5.0        # 설정 고도 (이륙, 주행 중 유지할 고도)
+        self.set_alt = 2.0        # 설정 고도 (이륙, 주행 중 유지할 고도)
         self.archived_alt = None  # 이륙 완료 판정 고도 (set_alt의 95%)
 
 
