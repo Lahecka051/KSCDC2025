@@ -113,7 +113,7 @@ class Fire_detector:
             if not ret:
                 continue
 
-            results = self.model.predict(frame, imgsz=920, conf=0.4, verbose=False)
+            results = self.model.predict(frame, imgsz=640, conf=0.4, verbose=False)
 
             fire_detected = False
             center_x, center_y = None, None
@@ -272,4 +272,5 @@ class Fire_detector:
             return
         else:
             print("오류: 프레임을 읽을 수 없습니다.")
+
             return
