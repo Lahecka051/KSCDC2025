@@ -7,6 +7,23 @@ import queue
 import threading
 import math
 
+class DroneGPS:
+    def __init__(self, drone_system):
+        self.drone = drone_system
+        self.altitude = 5.0
+        self.heading = 0
+        self.latitude = 0
+        self.longitude = 0
+        
+    def update(self):
+        gps_data = self.drone.read_gps()
+        if gps_data:
+            self.latitude = gps_data['lat']
+            self.longitude = gps_data['lon']
+        alt = self.drone.read_altitude()
+        if alt:
+            self.altitude = alt
+
 class Patrol():
     def __init__(self, drone_system, fire_detector, landing, communicator):
         self.drone_system = drone_system
@@ -16,6 +33,7 @@ class Patrol():
         self.status_q = queue.Queue()
         self.stop_event = threading.Event()
         self.ARRIVAL_RADIUS = 2
+        self.drone_gps = DroneGPS(self.drone_system)
 
     def run(self, path):
         if not path: return
@@ -24,35 +42,14 @@ class Patrol():
         self.stop_event.clear()
         status = "MOVING_TO_TARGET"
         
-        # 수정: 임시 drone_gps 객체 생성 (실제로는 드론에서 받아와야 함)
-        class DroneGPS:
-            def __init__(self, drone_system):
-                self.drone = drone_system
-                self.altitude = 2.0
-                self.heading = 0
-                self.latitude = 0
-                self.longitude = 0
-                
-            def update(self):
-                gps_data = self.drone.read_gps()
-                if gps_data:
-                    self.latitude = gps_data['lat']
-                    self.longitude = gps_data['lon']
-                alt = self.drone.read_altitude()
-                if alt:
-                    self.altitude = alt
-                    
-        drone_gps = DroneGPS(self.drone_system)
-        
-        # 수정: fire_detector 오타 수정
         threading.Thread(target=self.fire_detector.fire_detection_thread,
-                        args=(drone_gps, self.status_q, self.stop_event),
+                        args=(self.drone_gps, self.status_q, self.stop_event),
                         daemon=True).start()
         
         self.drone_system.arm()
         time.sleep(5)
         self.drone_system.takeoff()
-        
+
         for i, waypoint in enumerate(path):
             lat = waypoint['lat']
             lon = waypoint['lon']
@@ -60,7 +57,7 @@ class Patrol():
             
             while not fire_confirmed:  # 수정: 콜론 추가
                 # 수정: drone_gps 업데이트
-                drone_gps.update()
+                self.drone_gps.update()
                 
                 try:
                     result = self.status_q.get_nowait()
