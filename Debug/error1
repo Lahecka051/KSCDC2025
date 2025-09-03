@@ -1,0 +1,206 @@
+kscdc2025
+kscdc2025@10.140.11.192's password:
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.148-tegra aarch64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+This system has been minimized by removing packages and content that are
+not required on a system that users do not log into.
+
+To restore this content, you can run the 'unminimize' command.
+
+Expanded Security Maintenance for Applications is not enabled.
+
+18 updates can be applied immediately.
+2 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+64 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+Last login: Wed Sep  3 18:18:13 2025 from 10.140.11.209
+ckscdc2025@ubuntu:~$ cd drone
+kscdc2025@ubuntu:~/drone$ ls
+arm_disarm.py         drone_controller.py    Landing.py  pipeline.py
+best.engine           Fire_detector.py       main.py     __pycache__
+DroneCommunicator.py  Fire_extinguishing.py  patrol.py   reboot_fc.py
+kscdc2025@ubuntu:~/drone$ python main.py
+[통신 모듈] 초기화 완료. 목표 PC: AERO_17.local:65524
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3840 x 2160 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 0
+   Camera mode  = 0
+   Output Stream W = 3840 H = 2160
+   seconds to Run    = 0
+   Frame Rate = 29.999999
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[ WARN:0@4.676] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+ARGUS_ERROR: Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, execute: 946 Frame Rate specified is greater than supported
+GST_ARGUS: Running with following settings:
+   Camera index = 1
+   Camera mode  = 0
+   Output Stream W = 3280 H = 2464
+   seconds to Run    = 0
+   Frame Rate = 21.000000
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+ARGUS_ERROR: Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, execute: 1208 InvalidState.
+GST_ARGUS: Cleaning up
+nvbuf_utils: dmabuf_fd -1 mapped entry NOT found
+Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, threadExecute:734 NvBufSurfaceFromFd Failed.
+Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, threadFunction:245 (propagating)
+[ WARN:0@4.774] global cap_gstreamer.cpp:2839 handleMessage OpenCV | GStreamer warning: Embedded video playback halted; module nvarguscamerasrc1 reported: CANCELLED
+[ WARN:0@5.028] global cap_gstreamer.cpp:1698 open OpenCV | GStreamer warning: unable to start pipeline
+[ WARN:0@5.028] global cap_gstreamer.cpp:1173 isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
+[ WARN:0@5.028] global cap.cpp:204 open VIDEOIO(GSTREAMER): backend is generally available but can't be used to capture by name
+WARNING ⚠️ Unable to automatically guess model task, assuming 'task=detect'. Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify','pose' or 'obb'.
+Loading best.engine for TensorRT inference...
+[09/03/2025-18:27:59] [TRT] [I] Loaded engine size: 24 MiB
+[09/03/2025-18:27:59] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[09/03/2025-18:27:59] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +17, now: CPU 0, GPU 38 (MiB)
+[드론] FC 연결 중...
+[드론] FC 연결 성공
+[드론] 홈 GPS 좌표 읽는 중...
+[드론] 홈 위치 저장: 위도 35.1422599, 경도 129.0968519
+Jetson 임무 대기 중... (Port: 65523)
+
+PC(('10.140.11.209', 52455))로부터 연결됨. 명령 수신 중...
+Loading best.engine for TensorRT inference...
+[09/03/2025-18:28:11] [TRT] [I] Loaded engine size: 24 MiB
+[09/03/2025-18:28:11] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[09/03/2025-18:28:11] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +17, now: CPU 0, GPU 38 (MiB)
+
+[드론] 시동 중...
+[드론] 시동 성공
+
+[드론] 이륙 명령 (목표: 5.0m)...
+  현재 고도: 114.37m / 목표: 5.0m
+[드론] 이륙 완료 (고도: 114.37m)
+경로점 1 (35.142169345585714,129.09711863496148) 이동 시작
+[드론] GPS: 위도 35.1422611, 경도 129.0968537[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422611, 경도 129.0968537[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422611, 경도 129.0968537[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422611, 경도 129.0968537[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422612, 경도 129.0968537[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422612, 경도 129.0968537[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422619, 경도 129.0968544[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422619, 경도 129.0968544[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422619, 경도 129.0968544[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422619, 경도 129.0968544[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968544[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422620, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968545[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.35m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.36m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.36m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.36m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.37m
+호버링, 화재 관찰중
+[드론] GPS: 위도 35.1422621, 경도 129.0968546[드론] 현재 고도: 114.38m
+화재 감지, 화재 지점으로 이동합니다
+경로점 2 (35.14187982777575,129.0971213171705) 이동 시작
+[GPS 이동] 목표: 35.1462066, 129.0954486, 고도: 5.0m
+[드론] GPS: 위도 35.1427224, 경도 129.0953073
