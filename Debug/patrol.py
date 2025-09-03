@@ -95,6 +95,8 @@ class Patrol():
                         if distance <= self.ARRIVAL_RADIUS:
                             print(f"waypoint{i+1} 도착")
                             break
+            if fire_confirmed:
+                break
 
         if fire_confirmed:
             fire_lat = fire_coords[0]
@@ -128,4 +130,5 @@ class Patrol():
         if fire_confirmed:
             image_path = "captured_image.jpg"  # 수정: image_path 정의
             self.communicator.send_fire_report(coordinates, image_path)  # 수정: 콜론 제거
+
 
