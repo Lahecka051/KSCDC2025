@@ -42,13 +42,14 @@ class Patrol():
         self.stop_event.clear()
         status = "MOVING_TO_TARGET"
         
-        threading.Thread(target=self.fire_detector.fire_detection_thread,
-                        args=(self.drone_gps, self.status_q, self.stop_event),
-                        daemon=True).start()
-        
         self.drone_system.arm()
         time.sleep(5)
         self.drone_system.takeoff()
+        time.sleep(5)
+        
+        threading.Thread(target=self.fire_detector.fire_detection_thread,
+                        args=(self.drone_gps, self.status_q, self.stop_event),
+                        daemon=True).start()
 
         for i, waypoint in enumerate(path):
             lat = waypoint['lat']
@@ -130,5 +131,6 @@ class Patrol():
         if fire_confirmed:
             image_path = "captured_image.jpg"  # 수정: image_path 정의
             self.communicator.send_fire_report(coordinates, image_path)  # 수정: 콜론 제거
+
 
 
