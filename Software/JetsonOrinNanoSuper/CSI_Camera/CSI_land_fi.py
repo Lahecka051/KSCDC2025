@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import time
 from pipeline import gstreamer_pipeline
+from pymavlink import mavutil
 
 # GStreamer 파이프라인 함수를 클래스 외부에 정의합니다.
 def gstreamer_pipeline(
@@ -23,11 +24,26 @@ def gstreamer_pipeline(
     )
 
 class Landing:
-    def __init__(self, display_width=960, display_height=540):
+    def __init__(self, master, display_width=960, display_height=540):
         self.frame_width = display_width
         self.frame_height = display_height
         self.last_print_time = 0
-        self.last_command = [0, 0, 0, 0] # 마지막 명령 저장
+        self.master = master  # MAVLink 연결 객체
+        self.last_command = [0, 0, 0, 0]
+
+        # 탐색 및 매칭 상태 관리
+        self.state = "SEARCHING"  # "SEARCHING" 또는 "MATCHING"
+        self.search_altitudes = [5.0, 4.0, 3.0, 2.0]  # 미터 단위
+        self.target_altitude_index = 0
+        self.current_altitude = self.search_altitudes[self.target_altitude_index]
+        self.matched_position = None
+
+        # 매칭 목표 좌표 설정 (화면 가로 중앙, 세로 중앙과 아래 지점의 중간)
+        self.target_x = self.frame_width // 2
+        self.target_y = (self.frame_height // 2 + self.frame_height) // 2
+        
+        # 정수형으로 변환하기 위한 스케일링 팩터
+        self.SCALE = 15
 
     def detect_red_dot(self, frame):
         """프레임에서 가장 큰 빨간 점을 감지하고 중심 좌표와 면적을 반환"""
@@ -41,7 +57,7 @@ class Landing:
         mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
         red_mask = cv2.bitwise_or(mask1, mask2)
         
-        kernel = np.ones((3,3), np.uint8)
+        kernel = np.ones((3, 3), np.uint8)
         red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
         red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel)
         
@@ -60,67 +76,113 @@ class Landing:
                     return (cx, cy, area)
         return None
 
+    def _get_altitude_from_fc(self):
+        """MAVLink 메시지로부터 고도값을 가져오는 함수"""
+        try:
+            # FC로부터 GLOBAL_POSITION_INT 메시지 수신
+            msg = self.master.recv_match(type=['GLOBAL_POSITION_INT'], blocking=False, timeout=0.1)
+            if msg and msg.get_type() == 'GLOBAL_POSITION_INT':
+                # relative_alt는 mm 단위이므로 m 단위로 변환
+                return msg.relative_alt / 1000.0
+        except Exception as e:
+            print(f"FC에서 고도값을 읽는 중 오류 발생: {e}")
+        return None
+
     def get_control_command(self, frame):
         """
-        카메라 프레임을 분석하여 드론 제어 명령을 반환.
+        현재 상태에 따라 드론 제어 명령을 반환.
         명령 형식: [위아래, 전후, 좌우, 회전]
         """
-        
-        # 화면 중앙 좌표
-        center_x = self.frame_width // 2
-        center_y = self.frame_height // 2
-        
-        # 마커 탐지
         marker_info = self.detect_red_dot(frame)
         
-        # 기본 명령 (마커 없을 시)
-        # 위아래(수평 유지), 전후(정지), 좌우(정지), 회전(정지)
-        command = [0, 0, 0, 0] 
+        # 디버그용 목표선 그리기
+        cv2.line(frame, (0, self.target_y), (self.frame_width, self.target_y), (0, 255, 255), 2)
+        cv2.line(frame, (self.target_x, 0), (self.target_x, self.frame_height), (0, 255, 255), 2)
         
-        if marker_info:
-            marker_center_x, marker_center_y, area = marker_info
+        if self.state == "SEARCHING":
+            if marker_info:
+                print("✅ 마커 감지! 매칭 모드로 전환합니다.")
+                self.state = "MATCHING"
+                self.matched_position = (marker_info[0], marker_info[1])
+                return self._get_matching_command(frame, marker_info)
+            else:
+                return self._get_search_command()
+
+        elif self.state == "MATCHING":
+            if marker_info:
+                return self._get_matching_command(frame, marker_info)
+            else:
+                print("⚠️ 매칭 중 마커 손실. 탐색 모드로 돌아갑니다.")
+                self.state = "SEARCHING"
+                return [0, 0, 0, 0]
+
+    def _get_search_command(self):
+        """마커가 감지되지 않았을 때 고도 제어 명령을 반환"""
+        current_altitude_from_fc = self._get_altitude_from_fc()
+
+        if self.target_altitude_index < len(self.search_altitudes):
+            target_altitude = self.search_altitudes[self.target_altitude_index]
             
-            # 디버그용 중심점 표시
-            cv2.circle(frame, (marker_center_x, marker_center_y), 7, (0, 255, 0), -1)
+            if current_altitude_from_fc is None or current_altitude_from_fc > target_altitude + 0.5:
+                print(f"마커 없음. 고도를 {target_altitude}m로 낮춥니다.")
+                # 실제 FC로 고도 명령을 보내는 로직 추가
+                # 예: self.master.mav.send(mavutil.mavlink.MAVLink_set_position_target_local_ned_message(...))
+                return [-0.5, 0, 0, 0] # 고도를 낮추는 명령
+            else:
+                self.target_altitude_index += 1
+                if self.target_altitude_index >= len(self.search_altitudes):
+                    print("🚨 마커를 찾지 못했습니다. 착륙 실패.")
+                    return [0, 0, 0, 0]
+                else:
+                    print(f"현재 고도 {target_altitude}m에 도달. 다음 목표 고도 {self.search_altitudes[self.target_altitude_index]}m로 진행")
+                    return [0, 0, 0, 0] # 다음 고도까지 호버링
+
+        print("🚨 마커를 찾지 못했습니다. 착륙 실패.")
+        return [0, 0, 0, 0]
+
+    def _get_matching_command(self, frame, marker_info):
+        """마커가 감지되었을 때 정밀 제어 명령을 반환"""
+        marker_center_x, marker_center_y, _ = marker_info
+        
+        current_altitude_from_fc = self._get_altitude_from_fc()
+        LANDING_ALTITUDE_THRESHOLD = 0.3  # 0.3m (30cm)
+
+        # 고도값을 받아 착륙 완료 판정
+        if current_altitude_from_fc and current_altitude_from_fc <= LANDING_ALTITUDE_THRESHOLD:
+            # 관제센터에 착륙 완료 출력
+            print("✅ 착륙 완료!")
+            return [0, 0, 0, 0] # 모든 명령 정지
+        
+        x_diff = marker_center_x - self.target_x
+        y_diff = marker_center_y - self.target_y
+        
+        command_down = -0.2
+        command_forward_backward = -(y_diff // self.SCALE)
+        command_left_right = -(x_diff // self.SCALE)
+        
+        now = time.time()
+        if now - self.last_print_time > 0.5:
+            altitude_str = f"{current_altitude_from_fc:.2f}m" if current_altitude_from_fc is not None else "N/A"
+            print(f"매칭 중 | 고도: {altitude_str} | 오차: x={x_diff}, y={y_diff} | 명령: [{command_down}, {command_forward_backward}, {command_left_right}, 0]")
+            self.last_print_time = now
             
-            # 마커의 상대적 위치
-            x_diff = marker_center_x - center_x
-            y_diff = marker_center_y - center_y
-            
-            # 명령 계산
-            # 정수형으로 변환하기 위한 스케일링 팩터
-            SCALE = 15 
-            
-            # 위아래 (하강) - 마커 감지 시 하강 명령
-            command[0] = -0.2
-            
-            # 전후 (+: 전진, -: 후진) - Y축 오차에 비례하여 제어
-            # 마커가 아래(y_diff > 0)에 있으면 드론은 후진해야 함
-            command[1] = -(y_diff // SCALE)
-            
-            # 좌우 (+: 좌측, -: 우측) - X축 오차에 비례하여 제어
-            # 마커가 오른쪽(x_diff > 0)에 있으면 드론은 우측으로 이동해야 함
-            command[2] = -(x_diff // SCALE)
-            
-            # 회전
-            command[3] = 0
-            
-            # 디버그 메시지 출력 (0.5초 간격)
-            now = time.time()
-            if now - self.last_print_time > 0.5:
-                print(f"마커 감지 | 오차: x={x_diff}, y={y_diff} | 명령: {command}")
-                self.last_print_time = now
-        else:
-            # 마커 미감지 시, 마지막 명령을 유지하거나 정지
-            # 여기서는 편의상 정지 명령을 보냅니다.
-            print("마커 없음. 드론 정지 또는 호버링")
-            
-        return command
+        return [command_down, command_forward_backward, command_left_right, 0]
 
     def run_main_loop(self):
         """
         테스트를 위한 메인 루프 (실제 드론 제어 코드에 통합되어야 함)
         """
+        # === MAVLink 연결 설정 ===
+        # 실제 드론과의 연결에 맞게 아래 포트와 baudrate를 수정하세요.
+        # 예: mavutil.mavlink_connection('com3', baud=57600)
+        # 예: mavutil.mavlink_connection('udp:127.0.0.1:14550')
+        master = mavutil.mavlink_connection('udp:127.0.0.1:14550', baud=57600)
+        master.wait_heartbeat()
+        print("하트비트 수신 성공, 드론 연결 완료!")
+        # ======================
+
+        self.master = master # Landing 객체에 MAVLink 연결 할당
+
         pipeline0 = gstreamer_pipeline(sensor_id=0)
         cap = cv2.VideoCapture(pipeline0, cv2.CAP_GSTREAMER)
 
@@ -136,13 +198,8 @@ class Landing:
                 print("프레임을 읽을 수 없습니다.")
                 break
                 
-            # 제어 명령 얻기
             command = self.get_control_command(frame)
             
-            # 이 부분에서 얻은 'command' 리스트를 드론 제어 코드로 전송하면 됩니다.
-            # 예: master.mav.set_position_target_local_ned_send(...)
-            
-            # 디버그용 화면 표시
             cv2.imshow("Drone Landing", frame)
             
             if cv2.waitKey(1) & 0xFF == 27:
@@ -154,8 +211,5 @@ class Landing:
 
 
 if __name__ == "__main__":
-    # 클래스 인스턴스화
-    landing_controller = Landing()
-    
-    # 메인 루프 실행
+    landing_controller = Landing(master=None) # 초기에는 None으로 설정
     landing_controller.run_main_loop()
