@@ -26,8 +26,10 @@ class Landing:
         self.LANDING_SPEED = 0.2  # 하강 속도 (m/s)
         self.POSITION_THRESHOLD = 30  # 위치 오차 임계값 (픽셀)
         self.AREA_THRESHOLD = 5000  # 착륙 완료 판정 면적
-        self.NO_MARKER_COUNT = 0  # 마커 미감지 카운트
-        self.MAX_NO_MARKER_COUNT = 30  # 최대 미감지 허용 횟수
+        
+        # 수정: 시간 기반 마커 탐색
+        self.marker_search_start = None  # 마커 탐색 시작 시간
+        self.MARKER_SEARCH_TIMEOUT = 10  # 10초 타임아웃
 
     def detect_red_dot(self, frame):
         """프레임에서 가장 큰 빨간 점을 감지하고 중심 좌표와 면적을 반환"""
@@ -82,6 +84,9 @@ class Landing:
         if marker_info:
             marker_center_x, marker_center_y, area = marker_info
             
+            # 수정: 마커 찾으면 타이머 리셋
+            self.marker_search_start = None
+            
             # 마커의 상대적 위치
             x_diff = marker_center_x - center_x
             y_diff = marker_center_y - center_y
@@ -89,15 +94,12 @@ class Landing:
             # 명령 계산을 위한 스케일링 팩터
             SCALE = 300.0  # 픽셀을 m/s로 변환
             
-            # 수정: DroneController 형식에 맞게 변경
             # [전진/후진, 좌/우, 상승/하강, 방향]
             
             # 전진/후진 제어 - Y축 오차에 비례
-            # 마커가 아래(y_diff > 0)에 있으면 드론은 전진해야 함
             command[0] = (y_diff / SCALE)
             
             # 좌/우 제어 - X축 오차에 비례
-            # 마커가 오른쪽(x_diff > 0)에 있으면 드론은 우측(-) 이동
             command[1] = -(x_diff / SCALE)
             
             # 하강 - 착륙 중이므로 항상 하강
@@ -119,20 +121,24 @@ class Landing:
             # 착륙 완료 판정 (마커가 충분히 크고 중앙에 위치)
             if area > self.AREA_THRESHOLD and abs(x_diff) < self.POSITION_THRESHOLD and abs(y_diff) < self.POSITION_THRESHOLD:
                 return "LANDING_COMPLETE"
-                
-            self.NO_MARKER_COUNT = 0  # 마커 감지 시 카운트 리셋
             
         else:
-            # 마커 미감지 시
-            self.NO_MARKER_COUNT += 1
+            # 수정: 마커 미감지 시 타이머 체크
+            if self.marker_search_start is None:
+                self.marker_search_start = time.time()
+                print(f"[착륙] 마커 탐색 시작 (최대 {self.MARKER_SEARCH_TIMEOUT}초)")
             
-            if self.NO_MARKER_COUNT > self.MAX_NO_MARKER_COUNT:
-                # 오랫동안 마커를 못 찾으면 천천히 하강하며 탐색
-                command[2] = -0.1  # 느린 하강
-                print("[착륙] 마커 탐색 중... 천천히 하강")
+            elapsed = time.time() - self.marker_search_start
+            
+            if elapsed >= self.MARKER_SEARCH_TIMEOUT:
+                # 10초 타임아웃 - LAND 모드 전환
+                print(f"[착륙] 마커 탐색 실패 ({self.MARKER_SEARCH_TIMEOUT}초 초과) - LAND 모드 전환")
+                return "FORCE_LAND"
             else:
-                # 짧은 시간 미감지는 호버링
-                print("[착륙] 마커 없음. 호버링")
+                # 호버링하며 대기
+                remaining = self.MARKER_SEARCH_TIMEOUT - elapsed
+                if int(elapsed) % 2 == 0:  # 2초마다 출력
+                    print(f"[착륙] 마커 탐색 중... (남은 시간: {remaining:.1f}초)")
             
         self.last_command = command
         return command
@@ -140,18 +146,22 @@ class Landing:
     def run(self):
         """
         착륙 시퀀스 실행
-        - 착륙 모드 전환
+        - 홈 도착 후 마커 탐색 시작
         - 마커 추적하며 착륙
         - 착륙 완료 시 시동 끄기
         """
-        print("\n[착륙] 착륙 시작")
+        print("\n[착륙] 착륙 시퀀스 시작")
+        
+        # 수정: goto_home이 이미 nonfire_patrol.py에서 호출되었으므로
+        # 여기서는 홈 도착을 가정하고 바로 마커 탐색 시작
+        print("[착륙] 홈 위치 도착 확인 - 마커 탐색 시작")
         
         # 착륙 모드 설정
         self.drone_system.set_mode_guided()  # GUIDED 모드 유지하여 정밀 제어
         
         landing_complete = False
         start_time = time.time()
-        timeout = 60  # 최대 60초 착륙 시도
+        timeout = 60  # 전체 착륙 최대 60초
         
         try:
             while not landing_complete and (time.time() - start_time) < timeout:
@@ -164,14 +174,23 @@ class Landing:
                 # 제어 명령 얻기
                 command = self.get_control_command(frame)
                 
+                # 수정: 강제 LAND 모드 체크
+                if command == "FORCE_LAND":
+                    print("[착륙] LAND 모드로 전환")
+                    self.drone_system.set_mode_land()
+                    time.sleep(10)  # 착륙 대기
+                    landing_complete = True
+                    break
+                
                 # 착륙 완료 체크
-                if command == "LANDING_COMPLETE":
+                elif command == "LANDING_COMPLETE":
                     print("[착륙] 착륙 완료 감지! 시동 끄기...")
                     landing_complete = True
                     break
                 
                 # 드론에 명령 전송
-                self.drone_system.set_command(command)
+                else:
+                    self.drone_system.set_command(command)
                 
                 # 짧은 대기 (제어 주기)
                 time.sleep(0.05)  # 20Hz 제어
