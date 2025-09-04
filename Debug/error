@@ -1,0 +1,148 @@
+login as: kscdc2025
+kscdc2025@10.140.11.192's password:
+Welcome to Ubuntu 22.04.5 LTS (GNU/Linux 5.15.148-tegra aarch64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+This system has been minimized by removing packages and content that are
+not required on a system that users do not log into.
+
+To restore this content, you can run the 'unminimize' command.
+
+Expanded Security Maintenance for Applications is not enabled.
+
+18 updates can be applied immediately.
+2 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+64 additional security updates can be applied with ESM Apps.
+Learn more about enabling ESM Apps service at https://ubuntu.com/esm
+
+Last login: Wed Sep  3 17:20:24 2025 from 10.140.11.209
+kscdc2025@ubuntu:~$ cd drone
+kscdc2025@ubuntu:~/drone$ python main.py
+[통신 모듈] 초기화 완료. 목표 PC: AERO_17.local:65524
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3840 x 2160 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 22.250000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: Running with following settings:
+   Camera index = 0
+   Camera mode  = 0
+   Output Stream W = 3840 H = 2160
+   seconds to Run    = 0
+   Frame Rate = 29.999999
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+[ WARN:0@4.188] global cap_gstreamer.cpp:1777 open OpenCV | GStreamer warning: Cannot query video position: status=0, value=-1, duration=-1
+GST_ARGUS: Creating output stream
+CONSUMER: Waiting until producer is connected...
+GST_ARGUS: Available Sensor modes :
+GST_ARGUS: 3280 x 2464 FR = 21.000000 fps Duration = 47619048 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 3280 x 1848 FR = 28.000001 fps Duration = 35714284 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1920 x 1080 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1640 x 1232 FR = 29.999999 fps Duration = 33333334 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+GST_ARGUS: 1280 x 720 FR = 59.999999 fps Duration = 16666667 ; Analog Gain range min 1.000000, max 10.625000; Exposure Range min 13000, max 683709000;
+
+ARGUS_ERROR: Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, execute: 946 Frame Rate specified is greater than supported
+GST_ARGUS: Running with following settings:
+   Camera index = 1
+   Camera mode  = 0
+   Output Stream W = 3280 H = 2464
+   seconds to Run    = 0
+   Frame Rate = 21.000000
+GST_ARGUS: Setup Complete, Starting captures for 0 seconds
+GST_ARGUS: Starting repeat capture requests.
+CONSUMER: Producer has connected; continuing.
+ARGUS_ERROR: Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, execute: 1208 InvalidState.
+GST_ARGUS: Cleaning up
+nvbuf_utils: dmabuf_fd -1 mapped entry NOT found
+Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, threadExecute:734 NvBufSurfaceFromFd Failed.
+Error generated. /dvs/git/dirty/git-master_linux/multimedia/nvgstreamer/gst-nvarguscamera/gstnvarguscamerasrc.cpp, threadFunction:245 (propagating)
+[ WARN:0@4.280] global cap_gstreamer.cpp:2839 handleMessage OpenCV | GStreamer warning: Embedded video playback halted; module nvarguscamerasrc1 reported: CANCELLED
+[ WARN:0@4.298] global cap_gstreamer.cpp:1698 open OpenCV | GStreamer warning: unable to start pipeline
+[ WARN:0@4.298] global cap_gstreamer.cpp:1173 isPipelinePlaying OpenCV | GStreamer warning: GStreamer: pipeline have not been created
+[ WARN:0@4.298] global cap.cpp:204 open VIDEOIO(GSTREAMER): backend is generally available but can't be used to capture by name
+WARNING ⚠️ Unable to automatically guess model task, assuming 'task=detect'. Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify','pose' or 'obb'.
+Loading best.engine for TensorRT inference...
+[09/03/2025-17:49:42] [TRT] [I] Loaded engine size: 24 MiB
+[09/03/2025-17:49:42] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[09/03/2025-17:49:42] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +17, now: CPU 0, GPU 38 (MiB)
+[드론] FC 연결 중...
+[드론] FC 연결 성공
+[드론] 홈 GPS 좌표 읽는 중...
+[드론] 홈 위치 저장: 위도 35.1422564, 경도 129.0968699
+Jetson 임무 대기 중... (Port: 65523)
+
+PC(('10.140.11.209', 58272))로부터 연결됨. 명령 수신 중...
+Loading best.engine for TensorRT inference...
+[09/03/2025-17:50:42] [TRT] [I] Loaded engine size: 24 MiB
+[09/03/2025-17:50:42] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[09/03/2025-17:50:42] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +17, now: CPU 0, GPU 38 (MiB)
+
+[드론] 시동 중...
+[드론] 시동 성공
+WARNING ⚠️ imgsz=[920] must be multiple of max stride 32, updating to [928]
+Exception in thread Thread-2 (fire_detection_thread):
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/threading.py", line 1016, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/kscdc2025/drone/Fire_detector.py", line 116, in fire_detection_thread
+    results = self.model.predict(frame, imgsz=920, conf=0.4, verbose=False)
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/engine/model.py", line 555, in predict
+    return self.predictor.predict_cli(source=source) if is_cli else self.predictor(source=source, stream=stream)
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/engine/predictor.py", line 227, in __call__
+    return list(self.stream_inference(source, model, *args, **kwargs))  # merge list of Result into one
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 36, in generator_context
+    response = gen.send(None)
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/engine/predictor.py", line 330, in stream_inference
+    preds = self.inference(im, *args, **kwargs)
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/engine/predictor.py", line 182, in inference
+    return self.model(im, augment=self.args.augment, visualize=visualize, embed=self.args.embed, *args, **kwargs)
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1714, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1725, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/nn/autobackend.py", line 723, in forward
+    assert im.shape == s, f"input size {im.shape} {'>' if self.dynamic else 'not equal to'} max model size {s}"
+AssertionError: input size torch.Size([1, 3, 928, 928]) not equal to max model size (1, 3, 640, 640)
+
+[드론] 이륙 명령 (목표: 2.0m)...
+  현재 고도: 107.06m / 목표: 2.0m
+[드론] 이륙 완료 (고도: 107.06m)
+경로점 1 (35.142169345585714,129.09711863496148) 이동 시작
+Exception in thread Thread-1 (run):
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/threading.py", line 1016, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.10/threading.py", line 953, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/kscdc2025/drone/patrol.py", line 60, in run
+    drone_gps.update()
+NameError: name 'drone_gps' is not defined. Did you mean: 'DroneGPS'?
+^CTraceback (most recent call last):
+  File "/home/kscdc2025/drone/main.py", line 85, in <module>
+    main()
+  File "/home/kscdc2025/drone/main.py", line 66, in main
+    data = communicator.receive_data()
+  File "/home/kscdc2025/drone/DroneCommunicator.py", line 71, in receive_data
+    conn, addr = self.s.accept()
+  File "/usr/lib/python3.10/socket.py", line 293, in accept
+    fd, addr = self._accept()
+KeyboardInterrupt
+GST_ARGUS: Cleaning up
+CONSUMER: Done Success
+GST_ARGUS: Done Success
+
