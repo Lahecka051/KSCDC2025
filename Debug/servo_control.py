@@ -20,7 +20,7 @@ class Servo:
         self.pwm.start(0)
         
         # 초기 위치 설정 (90도 - idle)
-        self.set_angle(90)
+        self.set_angle(0)
         print("[서보] 초기화 완료 (90도 - IDLE 위치)")
     
     def set_angle(self, angle):
@@ -80,4 +80,5 @@ class Servo:
         try:
             self.cleanup()
         except:
+
             pass
