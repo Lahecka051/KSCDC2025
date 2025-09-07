@@ -265,12 +265,12 @@ class Fire_detector:
             return False, [vx, vy, 0, 0]
 
     def capture_and_save_image(self, output_path="captured_image.jpg"):
-        """CSI 카메라(하단 카메라)로 사진 촬영"""
+        """CSI 카메라(전방 카메라)로 사진 촬영"""
         if not self.cap1.isOpened():
             print("[화재감지] 오류: 카메라를 열 수 없습니다.")
             return False
 
-        ret, frame = self.cap1.read()
+        ret, frame = self.cap0.read()
         if ret:
             cv2.imwrite(output_path, frame)
             print(f"[화재감지] 사진이 {output_path}에 저장되었습니다.")
@@ -279,3 +279,4 @@ class Fire_detector:
             print("[화재감지] 오류: 프레임을 읽을 수 없습니다.")
 
             return False
+
