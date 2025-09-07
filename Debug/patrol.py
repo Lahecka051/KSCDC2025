@@ -69,6 +69,7 @@ class Patrol():
                     elif result["status"] == "recognized":
                         status = "FIRE_DETECTED"
                         fire_coords = result["coords"]
+                        self.fire_detector.capture_and_save_image()
                         # 수정: 한글 제거
                         print("Estimated fire location:", fire_coords)
                         
@@ -103,37 +104,11 @@ class Patrol():
                             break
             if fire_confirmed:
                 break
-
-        if fire_confirmed:
-            fire_lat = fire_coords[0]
-            fire_lon = fire_coords[1]
-            while True:
-                self.drone_system.goto_gps(fire_lat, fire_lon)
-                current_coord = self.drone_system.read_gps()
-                if current_coord:
-                    current_lat = current_coord["lat"]
-                    current_lon = current_coord["lon"]
-                    distance_fire = self.drone_system.get_distance_metres(current_lat, current_lon, fire_lat, fire_lon)
-                    
-                    # 목표 지점에 도달하면 break
-                    if distance_fire <= self.ARRIVAL_RADIUS:
-                        # 수정: 한글 제거
-                        print("Arrived near fire location")
-                        break
-                
-            while not align:
-                align, cmd = self.fire_detector.align_drone_to_object()
-                self.drone_system.set_command(cmd)
-                if self.fire_detector.patrol_state == 'stop':
-                    break
-                    
-            if not self.fire_detector.patrol_state == 'stop':
-                coordinates = self.drone_system.read_gps()
-                self.fire_detector.capture_and_save_image()
                 
         self.drone_system.goto_home()
         self.landing.run()
         
         if fire_confirmed:
             image_path = "captured_image.jpg"
+
             self.communicator.send_fire_report(coordinates, image_path)
