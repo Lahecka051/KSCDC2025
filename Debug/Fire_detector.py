@@ -100,8 +100,9 @@ class Fire_detector:
         estimated_lon = drone_gps.longitude + math.degrees(delta_lon)
 
         print(f"[화재감지] 정상: 추정 거리 {horizontal_distance:.1f}m, 고도: {drone_gps.altitude:.1f}m")
+        estimated_coords = {"lat":estimated_lat, "lon":estimated_lon}
         
-        return (estimated_lat, estimated_lon)
+        return estimated_coords
 
     def fire_detection_thread(self, drone_gps, result_q, stop_event):
         """
@@ -276,4 +277,5 @@ class Fire_detector:
             return True
         else:
             print("[화재감지] 오류: 프레임을 읽을 수 없습니다.")
+
             return False
