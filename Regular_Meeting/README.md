@@ -64,6 +64,6 @@
 - Flight Controller Spec : Mounting = 30.5mm x 30.5mm x 4mm, Dimensions = 36mm x 36mm x 8mm, Weight = 10g
 - 14.8V 8400mah 130C 리포 하드케이스 크기: 138 x 47 x 49mm 무게 639g.
 - 소화볼 규격: 지름 4inch(약 100mm), 약 400g
-- [링크] (https://fireds.com/product/%EC%BD%94%EB%81%BC%EB%A6%AC%EC%86%8C%EB%B0%A9%EB%A7%88%ED%8A%B8-%ED%99%94%EC%9D%B4%EC%96%B4%EB%B3%BC4%EC%9D%B8%EC%B9%98-%ED%99%94%EC%9E%AC%EC%B4%88%EA%B8%B0-%EC%9E%90%EB%8F%99-%EC%A7%84%EC%95%95%EA%B3%B5-%EC%86%8C%EA%B3%B5%EA%B0%84-%EC%9E%90%EB%8F%99%EC%86%8C%ED%99%94%EC%9E%A5%EC%B9%98-%EC%9E%90%EB%8F%99%EC%86%8C%ED%99%94%EA%B8%B0/8683/)
+- [소화볼 규격 링크](https://fireds.com/product/%EC%BD%94%EB%81%BC%EB%A6%AC%EC%86%8C%EB%B0%A9%EB%A7%88%ED%8A%B8-%ED%99%94%EC%9D%B4%EC%96%B4%EB%B3%BC4%EC%9D%B8%EC%B9%98-%ED%99%94%EC%9E%AC%EC%B4%88%EA%B8%B0-%EC%9E%90%EB%8F%99-%EC%A7%84%EC%95%95%EA%B3%B5-%EC%86%8C%EA%B3%B5%EA%B0%84-%EC%9E%90%EB%8F%99%EC%86%8C%ED%99%94%EC%9E%A5%EC%B9%98-%EC%9E%90%EB%8F%99%EC%86%8C%ED%99%94%EA%B8%B0/8683/)
 ## 앞으로 진행할 내용
 - 젯슨 객체인식 소프트웨어 & 지상국 소프트웨어 구체화
