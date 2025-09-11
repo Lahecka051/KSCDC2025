@@ -1,43 +1,5 @@
-python3 run_benchmark.py
-
-A module that was compiled using NumPy 1.x cannot be run in
-NumPy 2.2.6 as it may crash. To support both 1.x and 2.x
-versions of NumPy, modules must be compiled with NumPy 2.0.
-Some module may need to rebuild instead e.g. with 'pybind11>=2.12'.
-
-If you are a user of the module, the easiest solution will be to
-downgrade to 'numpy<2' or try to upgrade the affected module.
-We expect that some modules will need time to support NumPy 2.
-
-Traceback (most recent call last):  File "/usr/lib/python3.10/runpy.py", line 187, in _run_module_as_main
-    mod_name, mod_spec, code = _get_module_details(mod_name, _Error)
-  File "/usr/lib/python3.10/runpy.py", line 110, in _get_module_details
-    __import__(pkg_name)
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/__init__.py", line 11, in <module>
-    from ultralytics.models import NAS, RTDETR, SAM, YOLO, YOLOE, FastSAM, YOLOWorld
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/models/__init__.py", line 3, in <module>
-    from .fastsam import FastSAM
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/models/fastsam/__init__.py", line 3, in <module>
-    from .model import FastSAM
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/models/fastsam/model.py", line 6, in <module>
-    from ultralytics.engine.model import Model
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/engine/model.py", line 8, in <module>
-    import torch
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/__init__.py", line 2422, in <module>
-    from torch import (
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/export/__init__.py", line 64, in <module>
-    from .dynamic_shapes import Constraint, Dim, dims, dynamic_dim, ShapesCollection
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/export/dynamic_shapes.py", line 18, in <module>
-    from .exported_program import ExportedProgram
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/export/exported_program.py", line 24, in <module>
-    from torch._higher_order_ops.utils import autograd_not_implemented
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_higher_order_ops/__init__.py", line 1, in <module>
-    from torch._higher_order_ops.cond import cond
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_higher_order_ops/cond.py", line 5, in <module>
-    import torch._subclasses.functional_tensor
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py", line 42, in <module>
-    class FunctionalTensor(torch.Tensor):
-  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py", line 267, in FunctionalTensor
-    cpu = _conversion_method_template(device=torch.device("cpu"))
-/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:267: UserWarning: Failed to initialize NumPy: _ARRAY_API not found (Triggered internally at /opt/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
-  cpu = _conversion_method_template(device=torch.device("cpu"))
+cat /etc/nv_tegra_release
+# R36 (release), REVISION: 4.4, GCID: 41062509, BOARD: generic, EABI: aarch64, DATE: Mon Jun 16 16:07:13 UTC 2025
+# KERNEL_VARIANT: oot
+TARGET_USERSPACE_LIB_DIR=nvidia
+TARGET_USERSPACE_LIB_DIR_PATH=usr/lib/aarch64-linux-gnu/nvidia
