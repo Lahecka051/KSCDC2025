@@ -1,0 +1,65 @@
+yolo benchmark model=yolov8s.pt imgsz=640 half=True device=0
+ 
+A module that was compiled using NumPy 1.x cannot be run in
+NumPy 2.2.6 as it may crash. To support both 1.x and 2.x
+versions of NumPy, modules must be compiled with NumPy 2.0.
+Some module may need to rebuild instead e.g. with 'pybind11>=2.12'.
+
+If you are a user of the module, the easiest solution will be to
+downgrade to 'numpy<2' or try to upgrade the affected module.
+We expect that some modules will need time to support NumPy 2.
+
+Traceback (most recent call last):  File "/home/kscdc2025/.local/bin/yolo", line 3, in <module>
+    from ultralytics.cfg import entrypoint
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/__init__.py", line 11, in <module>
+    from ultralytics.models import NAS, RTDETR, SAM, YOLO, YOLOE, FastSAM, YOLOWorld
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/models/__init__.py", line 3, in <module>
+    from .fastsam import FastSAM
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/models/fastsam/__init__.py", line 3, in <module>
+    from .model import FastSAM
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/models/fastsam/model.py", line 6, in <module>
+    from ultralytics.engine.model import Model
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/engine/model.py", line 8, in <module>
+    import torch
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/__init__.py", line 2422, in <module>
+    from torch import (
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/export/__init__.py", line 64, in <module>
+    from .dynamic_shapes import Constraint, Dim, dims, dynamic_dim, ShapesCollection
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/export/dynamic_shapes.py", line 18, in <module>
+    from .exported_program import ExportedProgram
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/export/exported_program.py", line 24, in <module>
+    from torch._higher_order_ops.utils import autograd_not_implemented
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_higher_order_ops/__init__.py", line 1, in <module>
+    from torch._higher_order_ops.cond import cond
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_higher_order_ops/cond.py", line 5, in <module>
+    import torch._subclasses.functional_tensor
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py", line 42, in <module>
+    class FunctionalTensor(torch.Tensor):
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py", line 267, in FunctionalTensor
+    cpu = _conversion_method_template(device=torch.device("cpu"))
+/home/kscdc2025/.local/lib/python3.10/site-packages/torch/_subclasses/functional_tensor.py:267: UserWarning: Failed to initialize NumPy: _ARRAY_API not found (Triggered internally at /opt/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:84.)
+  cpu = _conversion_method_template(device=torch.device("cpu"))
+Downloading https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov
+Traceback (most recent call last):
+  File "/home/kscdc2025/.local/bin/yolo", line 7, in <module>
+    sys.exit(entrypoint())
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/cfg/__init__.py", line 983, in entrypoint
+    getattr(model, mode)(**overrides)  # default args from model
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/engine/model.py", line 678, in benchmark
+    return benchmark(
+  File "/home/kscdc2025/.local/lib/python3.10/site-packages/ultralytics/utils/benchmarks.py", line 91, in benchmark
+    import pandas as pd  # scope for faster 'import ultralytics'
+  File "/usr/lib/python3/dist-packages/pandas/__init__.py", line 28, in <module>
+    from pandas.compat import (
+  File "/usr/lib/python3/dist-packages/pandas/compat/__init__.py", line 15, in <module>
+    from pandas.compat.numpy import (
+  File "/usr/lib/python3/dist-packages/pandas/compat/numpy/__init__.py", line 7, in <module>
+    from pandas.util.version import Version
+  File "/usr/lib/python3/dist-packages/pandas/util/__init__.py", line 1, in <module>
+    from pandas.util._decorators import (  # noqa
+  File "/usr/lib/python3/dist-packages/pandas/util/_decorators.py", line 14, in <module>
+    from pandas._libs.properties import cache_readonly  # noqa
+  File "/usr/lib/python3/dist-packages/pandas/_libs/__init__.py", line 13, in <module>
+    from pandas._libs.interval import Interval
+  File "pandas/_libs/interval.pyx", line 1, in init pandas._libs.interval
+ValueError: numpy.dtype size changed, may indicate binary incompatibility. Expected 96 from C header, got 88 from PyObject
