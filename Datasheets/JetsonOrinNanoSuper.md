@@ -1,7 +1,8 @@
 # Jetson Orin Nano Super Specifications
 
 
-[jetson-orin-datasheet-nano-developer-kit-3575392-r2.pdf](https://github.com/user-attachments/files/22325091/jetson-orin-datasheet-nano-developer-kit-3575392-r2.pdf)
+![Image](https://github.com/user-attachments/assets/909b9a65-9674-45db-9cb7-8476dd1162b9)
+![Image](https://github.com/user-attachments/assets/5a4d72fa-dbc4-44c1-8e1e-6b531bd86265)
 
 
 # GPIO PIN MAPS (33_PWM Activated)
