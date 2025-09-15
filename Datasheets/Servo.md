@@ -1,5 +1,5 @@
 # Datasheet 
-Used Servo : [SG90s](http://www.ee.ic.ac.uk/pcheung/teaching/DE1_EE/stores/sg90_datasheet.pdf)
+Used Servo : [SG90](http://www.ee.ic.ac.uk/pcheung/teaching/DE1_EE/stores/sg90_datasheet.pdf)
 
 ![Image](https://github.com/user-attachments/assets/a586689b-f2da-4e42-80e7-cda781810d78)
 
