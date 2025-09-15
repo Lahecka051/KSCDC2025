@@ -1,3 +1,0 @@
-yolo export model=best.pt format=engine dynamic=True \
-    imgsz=640 1280 1920 \
-    workspace=16
