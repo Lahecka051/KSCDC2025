@@ -2,7 +2,6 @@
 
 
 ![Image](https://github.com/user-attachments/assets/909b9a65-9674-45db-9cb7-8476dd1162b9)
-![Image](https://github.com/user-attachments/assets/5a4d72fa-dbc4-44c1-8e1e-6b531bd86265)
 
 
 # GPIO PINS MAP (33_PWM Activated)
