@@ -3,7 +3,7 @@
 - 메인 페이지의 정리된 회의 내용은 회의 종료 후 2일 이내 업데이트 됩니다.
 - 자세한 사항은 당일 회의록을 참고하시기 바랍니다.
 
-# Paste_Data : 08.01(금) (latest update) 
+# Paste_Data : 09.11(목) (latest update) 
 
 ### 정기 회의일
 - 매주 (수,목)요일 14:00 ~ 20:00
@@ -13,7 +13,7 @@
 
 ## 진행 상황
 ### 소프트웨어
-- 젯슨 CSI 카메라 객체인식 테스트 by YOLOv8s
+- 젯슨 CSI 카메라 객체인식 테스트 YOLOv8s
 - FC의 데이터를 텔레메트리를 이용하여 실시간 모니터링 가능한 지상국 구축
 - FC의 모터 PWM 신호 애널라이징 후 신호 복제하여 무선 모터 조종 테스트
 
@@ -48,10 +48,10 @@
 - [개발보드 공식 링크](https://www.nvidia.com/ko-kr/autonomous-machines/embedded-systems/jetson-orin/nano-super-developer-kit/)
 
 ### 소프트웨어
-- UBUNTU_GUI 20.04 (Jetpack5.1.5)
-- ROS BASED Ardupilot
+- UBUNTU_GUI 22.04 LTS (Jetpack6.2.1)
+- Ardupilot 5.4.2
 - USED OPENCV CUDA TensorRT
-- MODEL : YOLOv8s
+- YOLO MODEL : YOLOv8s
 
 ## 프레임
 - 페이로드 : 3kg 이하, 사이즈 : 300x300 mm 이상
