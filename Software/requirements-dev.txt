@@ -1,0 +1,11 @@
+# Development and testing dependencies
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+
+# Runtime dependencies (also needed for tests)
+numpy
+opencv-python
+ultralytics
+pymavlink
+Pillow
