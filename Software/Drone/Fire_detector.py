@@ -21,14 +21,14 @@ class Fire_detector:
         self.class_names = self.model.names
 
         # fire gps 변수 (카메라 Frame 640x640, FOV 63도 기준 30fps)
-        self.FIRE_CONFIRMATION = 30  # 화재 확정 프레임 임계값
-        self.OBSERVATION_TIMEOUT = 5  # 화재 탐지 관찰 시간
-        self.CAMERA_TILT_DEGREES = 30.0  # 카메라 각도
-        self.MAX_FIRE_DISTANCE = 20  # 최대 화재 거리
+        self.FIRE_CONFIRMATION = 30
+        self.OBSERVATION_TIMEOUT = 5
+        self.CAMERA_TILT_DEGREES = 30.0
+        self.MAX_FIRE_DISTANCE = 20
 
         # 정렬 판정 임계값
         self.threshold = 30
-        
+
         # 단순 이동 속도
         self.MOVE_SPEED = 0.1
 
@@ -40,39 +40,42 @@ class Fire_detector:
 
         self.target_classes = ['fire', 'smoke']
 
+        # [최적화] drone_system 참조를 None으로 명시적 초기화
+        # 기존: patrol.py에서 외부 주입(self.fire_detector.drone_system = drone_system)
+        #       하지만 __init__에서 선언되지 않아, 주입 전 접근 시 AttributeError 발생 가능
+        # 수정: None으로 초기화하여 hasattr 대신 명시적 None 체크 가능
+        self.drone_system = None
+
     def fire_gps(self, drone_gps, center_x, center_y, frame_width=640, frame_height=640, camera_fov_h=63.0):
         """화재 GPS 좌표 추정"""
-        # #수정: drone_gps가 딕셔너리 형태로 전달되는 경우 처리
         if drone_gps is None:
             print("[화재감지] 오류: drone_gps 객체가 None입니다")
             return None
-            
-        # #수정: 딕셔너리 형태로 처리
+
         if isinstance(drone_gps, dict):
             latitude = drone_gps.get('lat')
             longitude = drone_gps.get('lon')
-            altitude = drone_gps.get('alt', 2.0)  # 기본값 2.0m
-            heading = drone_gps.get('heading', 0)  # 기본값 0도
+            altitude = drone_gps.get('alt', 2.0)
+            heading = drone_gps.get('heading', 0)
         else:
-            # 객체 형태로 처리 (기존 코드와 호환)
             latitude = getattr(drone_gps, 'latitude', None) or getattr(drone_gps, 'lat', None)
             longitude = getattr(drone_gps, 'longitude', None) or getattr(drone_gps, 'lon', None)
             altitude = getattr(drone_gps, 'altitude', None) or getattr(drone_gps, 'alt', 2.0)
             heading = getattr(drone_gps, 'heading', 0)
-            
+
         if latitude is None or longitude is None:
             print("[화재감지] 오류: GPS 좌표가 없습니다")
             return None
-            
+
         if altitude is None or altitude < 0.5:
             print("[화재감지] 오류: 유효하지 않은 고도")
             return None
-            
+
         frame_center_x = frame_width / 2
         frame_center_y = frame_height / 2
 
         pixels_per_degree_h = frame_width / camera_fov_h
-        
+
         angle_x_from_center = (center_x - frame_center_x) / pixels_per_degree_h
         angle_y_from_center = (center_y - frame_center_y) / pixels_per_degree_h
 
@@ -84,7 +87,7 @@ class Fire_detector:
 
         if total_angle_depression_rad > 0:
             horizontal_distance = altitude / math.tan(total_angle_depression_rad)
-            
+
             if horizontal_distance > self.MAX_FIRE_DISTANCE:
                 print(f"[화재감지] 오류: 추정 거리 {horizontal_distance:.1f}m가 최대 거리 {self.MAX_FIRE_DISTANCE}m 초과")
                 return None
@@ -103,7 +106,7 @@ class Fire_detector:
         estimated_lon = longitude + math.degrees(delta_lon)
 
         print(f"[화재감지] 정상: 추정 거리 {horizontal_distance:.1f}m, 고도: {altitude:.1f}m")
-        
+
         return (estimated_lat, estimated_lon)
 
     def fire_detection_thread(self, drone_gps, result_q, stop_event):
@@ -133,21 +136,25 @@ class Fire_detector:
                     center_y = int((y1 + y2) / 2)
 
             if fire_detected:
-                # #수정: 실시간으로 GPS 업데이트 (딕셔너리 형태로 전달)
-                if hasattr(self, 'drone_system'):
+                # [최적화] GPS 소스 선택 로직 단순화
+                # 기존: hasattr(self, 'drone_system') — __init__에서 미선언 시 False
+                # 수정: self.drone_system is not None 으로 명시적 체크 (위에서 None 초기화 추가)
+                if self.drone_system is not None:
                     current_gps = self.drone_system.read_gps()
                     if current_gps:
                         current_gps['alt'] = getattr(self.drone_system, 'set_alt', 2.0)
-                        current_gps['heading'] = 0  # 실제 heading 값이 필요하면 추가
+                        current_gps['heading'] = 0
                         coords = self.fire_gps(current_gps, center_x, center_y)
+                    else:
+                        coords = self.fire_gps(drone_gps, center_x, center_y)
                 else:
                     coords = self.fire_gps(drone_gps, center_x, center_y)
-                
+
                 if coords is None:
                     result_q.put({"status": "error", "message": "화재 거리 계산 오류"})
                     detecting = False
                     continue
-                    
+
                 last_coords = coords
 
                 if not detecting:
@@ -185,7 +192,7 @@ class Fire_detector:
             return [0, 0, 0, 0]
 
         PATROL_SPEED = 0.5
-        
+
         if self.patrol_state == 'top':
             cmd = [PATROL_SPEED, 0, 0, 0]
             self.patrol_state = 'right'
@@ -201,7 +208,7 @@ class Fire_detector:
             self.patrol_laps += 1
         else:
             cmd = [0, 0, 0, 0]
-            
+
         return cmd
 
     def align_drone_to_object(self):
@@ -216,7 +223,7 @@ class Fire_detector:
         is_target_detected = False
         best_box = None
         class_name = ""
-        
+
         if len(results[0].boxes) > 0:
             best_box = max(results[0].boxes, key=lambda box: box.conf[0])
             class_name = self.class_names[int(best_box.cls[0])]
@@ -256,17 +263,17 @@ class Fire_detector:
 
             vx = 0
             vy = 0
-            
+
             if error_y > self.threshold:
                 vx = self.MOVE_SPEED
             elif error_y < -self.threshold:
                 vx = -self.MOVE_SPEED
-            
+
             if error_x > self.threshold:
                 vy = -self.MOVE_SPEED
             elif error_x < -self.threshold:
                 vy = self.MOVE_SPEED
-                
+
             print(f"[화재감지] 정렬 중... 오차: ({error_x}, {error_y}), 명령: vx={vx:.2f}, vy={vy:.2f}")
             return False, [vx, vy, 0, 0]
 
@@ -284,18 +291,23 @@ class Fire_detector:
         else:
             print("[화재감지] 오류: 프레임을 읽을 수 없습니다.")
             return False
-    
+
     def capture_and_save_image(self, output_path="captured_image.jpg"):
-        """CSI 카메라(하단 카메라)로 사진 촬영"""
+        """CSI 카메라(하단 카메라)로 사진 촬영
+
+        [최적화] 반환값 일관성 수정
+        기존: 성공/실패 모두 output_path를 반환 → 호출부에서 성공 여부 판별 불가
+        수정: 성공 시 output_path, 실패 시 None 반환하여 호출부에서 if 체크 가능
+        """
         if not self.cap1.isOpened():
             print("[화재감지] 오류: 카메라를 열 수 없습니다.")
-            return output_path  # #수정: False 대신 경로 반환
+            return None
 
         ret, frame = self.cap1.read()
         if ret:
             cv2.imwrite(output_path, frame)
             print(f"[화재감지] 사진이 {output_path}에 저장되었습니다.")
-            return output_path  # #수정: True 대신 경로 반환
+            return output_path
         else:
             print("[화재감지] 오류: 프레임을 읽을 수 없습니다.")
-            return output_path  # #수정: False 대신 경로 반환
+            return None
