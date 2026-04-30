@@ -1,8 +1,36 @@
-# KSCDC2025 - Team Prometheus
+# KSCDC2025 — Team Prometheus
+
+<p align="center">
+  <img alt="Status" src="https://img.shields.io/badge/Status-Final%20Submitted-success">
+  <img alt="Contest" src="https://img.shields.io/badge/Contest-KSCDC%202025-blue">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white">
+  <img alt="Jetson" src="https://img.shields.io/badge/NVIDIA-Jetson%20Orin%20Nano%20Super-76B900?logo=nvidia&logoColor=white">
+  <img alt="ArduPilot" src="https://img.shields.io/badge/ArduPilot-5.4.2-FF6F00">
+  <img alt="YOLOv8" src="https://img.shields.io/badge/YOLOv8s-TensorRT-00FFFF">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-green">
+</p>
 
 > **스마트 드론을 활용한 실시간 화재 탐지 및 초기 소화 시스템**
 >
 > NVIDIA Jetson Orin Nano Super 기반, 딥러닝 객체인식을 통한 자율 순찰 및 소화볼 투하가 가능한 화재 대응 드론 시스템
+
+---
+
+## 목차
+
+1. [프로젝트 개요](#프로젝트-개요)
+2. [팀원](#팀원)
+3. [시스템 아키텍처](#시스템-아키텍처)
+4. [운용 시나리오](#운용-시나리오)
+5. [폴더 구조](#폴더-구조)
+6. [소프트웨어 모듈 상세](#소프트웨어-모듈-상세)
+7. [하드웨어 사양](#하드웨어-사양)
+8. [소프트웨어 스택](#소프트웨어-스택)
+9. [통신 프로토콜](#통신-프로토콜)
+10. [대회 일정](#대회-일정)
+11. [라이선스](#라이선스)
+
+---
 
 ## 프로젝트 개요
 
@@ -56,6 +84,9 @@
 ```
 KSCDC2025/
 ├── README.md                          # 프로젝트 개요 (본 문서)
+├── LICENSE                            # MIT License
+├── .gitignore                         # Python/모델/로그 제외
+├── .gitattributes                     # 줄바꿈 정규화 (LF)
 │
 ├── Datasheets/                        # 부품 데이터시트 및 사양
 │   ├── Filament.md                    #   3D 프린트 필라멘트
@@ -63,7 +94,7 @@ KSCDC2025/
 │   ├── IMX219 Camera Module.md        #   하단 카메라 (160도 광각)
 │   ├── IMX477 Camera Module.md        #   정면 카메라 (63도)
 │   ├── JetsonOrinNanoSuper.md         #   NVIDIA Jetson Orin Nano Super
-│   ├── MicoAir H743v2.md             #   FC (비행 컨트롤러)
+│   ├── MicoAir H743v2.md              #   FC (비행 컨트롤러)
 │   ├── Motor & Propeller.md           #   Airgear 350 모터 & 프로펠러
 │   └── Servo.md                       #   소화볼 투하용 서보 모터
 │
@@ -73,6 +104,18 @@ KSCDC2025/
 │   ├── 설계제안서_프로메테우스_이강민.pdf
 │   ├── 중간보고서_프로메테우스_이강민.pdf
 │   └── 최종보고서_프로메테우스_이강민.pdf
+│
+├── STL/                               # 3D 프린트 모델 파일
+│   ├── Drone/                         #   드론 탑재 부품 (소화볼 하우징/플레이트)
+│   │   ├── Drone_4inch_Ball.stl
+│   │   ├── Drone_BAT_House_Hook.stl
+│   │   ├── Drone_BAT_House_Lower.stl
+│   │   ├── Drone_BAT_House_Upper.stl
+│   │   └── Drone_Bomb_Plate.stl
+│   └── Station/                       #   스테이션 메커니즘 (랙앤피니언)
+│       ├── Station_Bar.stl
+│       ├── Station_Pinion.stl
+│       └── Station_Rack.stl
 │
 └── Software/
     ├── Drone/                         # 드론 탑재 소프트웨어 (Jetson Orin Nano)
@@ -84,14 +127,14 @@ KSCDC2025/
     │   ├── Landing.py                 #   빨간 마커 추적 기반 정밀 착륙
     │   ├── DroneCommunicator.py       #   PC 관제 센터 TCP 통신 (보고/명령)
     │   ├── servo_control.py           #   소화볼 투하 서보 PWM 제어
-    │   └── pipeline.py               #   GStreamer CSI 카메라 파이프라인
+    │   └── pipeline.py                #   GStreamer CSI 카메라 파이프라인
     │
     ├── PC/                            # PC 관제 센터 소프트웨어
     │   ├── pc_server.py               #   Tkinter 관제 GUI (지도, 경로, 화재 대응)
     │   ├── pc_rpi_server.py           #   Station(RPi) TCP 통신 서버
     │   └── pc_server.exe              #   빌드된 실행 파일
     │
-    └── Station_미완성_중단/            # 드론 스테이션 [미완성]
+    └── Station_WIP/                   # 드론 스테이션 [개발 중단 / Work In Progress]
         ├── station.py                 #   스테이션 메인 — 서보, ToF 센서, 도킹 제어
         ├── Doc_match.py               #   카메라 기반 도킹 마커 감지
         └── rpi_client.py              #   PC 서버 TCP 통신 클라이언트
@@ -120,7 +163,7 @@ KSCDC2025/
 | `pc_server.py` | Tkinter + TkinterMapView 지도 GUI. 우클릭 경로점 추가, 순찰 명령 전송, 화재 보고 수신 시 지도 핑 + 사진 표시 + 진압 승인 |
 | `pc_rpi_server.py` | Station(RPi)과의 TCP 서버. 소화볼 장전 명령 전송 및 응답 수신. 포트 65525 |
 
-### Station [미완성]
+### Station [WIP — 개발 중단]
 
 | 모듈 | 설명 |
 |------|------|
@@ -132,44 +175,4 @@ KSCDC2025/
 
 | 구성 요소 | 사양 |
 |-----------|------|
-| **개발보드** | NVIDIA Jetson Orin Nano Super (100x79x21mm, 176g) |
-| **FC** | MicoAir H743 V2 (ArduPilot, 36x36x8mm, 10g) |
-| **정면 카메라** | IMX477 6mm 63° (화재 탐지용, 1920x1080 30fps) |
-| **하단 카메라** | IMX219 160° 광각 (착륙/정렬용, 1640x1232 21fps) |
-| **모터** | Airgear 350 x4 (920KV) |
-| **프로펠러** | 9.5 x 4.5 2-blade |
-| **프레임** | X6-X600 FPV (600mm), 페이로드 3kg 이하 |
-| **배터리** | LiPo 4S 14.8V 8400mAh 130C x2 |
-| **소화볼** | 4인치 (약 100mm), 약 400g |
-
-## 소프트웨어 스택
-
-| 구성 요소 | 기술 |
-|-----------|------|
-| **OS** | Ubuntu 22.04 LTS (JetPack 6.2.1) |
-| **비행 제어** | ArduPilot 5.4.2 + MAVLink (pymavlink) |
-| **객체 인식** | YOLOv8s + TensorRT + OpenCV CUDA |
-| **카메라** | GStreamer + nvarguscamerasrc (CSI) |
-| **관제 GUI** | Python Tkinter + TkinterMapView |
-| **통신** | TCP 소켓 (JSON 프로토콜) |
-
-## 통신 프로토콜
-
-| 방향 | 포트 | 메시지 형식 | 설명 |
-|------|------|-------------|------|
-| PC → 드론 | 65523 | `[{"lat":..,"lon":..}, ...]` | 순찰 경로점 리스트 |
-| PC → 드론 | 65523 | `{"type":"EXTINGUISH","target":{"lat":..,"lon":..}}` | 화재 진압 명령 |
-| 드론 → PC | 65524 | `{"type":"FIRE_REPORT","coordinates":..,"image_size":..}` + 이미지 바이너리 | 화재 보고 |
-| 드론 → PC | 65524 | `{"type":"STATUS_UPDATE","status":"EXTINGUISH_COMPLETE"}` | 상태 보고 |
-| PC → Station | 65525 | `["소화볼 수량"]` | 소화볼 장전 명령 |
-
-## 대회 일정
-
-| 단계 | 일정 |
-|------|------|
-| 설계제안서 접수 | 2025.04.07 ~ 2025.05.02 |
-| 중간보고서 접수 | 2025.06.02 ~ 2025.06.27 |
-| 본선 진출 팀 선정 | 2025.07.14 ~ 2025.07.18 |
-| 최종보고서 접수 | 2025.08.25 ~ 2025.09.12 |
-| 최종 본선 선정 결과 | 2025.09.29 |
-| 구두발표 및 시상 | 2025.10.25 |
+| **개발보드** | NVIDIA Jetson Orin

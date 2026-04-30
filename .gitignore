@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 모델 / 가중치 (대용량)
+*.engine
+*.onnx
+*.pt
+*.pth
+*.weights
+*.tflite
+
+# 로그 / 영상
+logs/
+*.log
+*.mp4
+*.avi
+*.mov
+
+# 빌드 산출물
+*.spec
+__pyinstaller__/
+
+# 테스트 캐시
+.pytest_cache/
+.coverage
+htmlcov/

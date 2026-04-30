@@ -1,0 +1,22 @@
+# 텍스트 파일은 LF로 정규화
+* text=auto eol=lf
+
+# 바이너리 (diff/머지 안 함)
+*.pdf binary
+*.stl binary
+*.exe binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.engine binary
+*.pt binary
+*.onnx binary
+
+# 줄바꿈 강제 LF (Linux/임베디드 타깃)
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
